@@ -75,7 +75,7 @@
     #content { flex: 1; overflow-y: auto; padding: 16px; padding-bottom: calc(16px + var(--safe-bot)); }
 
     /* ── Filtres ────────────────────────────────────────────── */
-    #filters { display: flex; gap: 8px; margin-bottom: 16px; flex-wrap: wrap; }
+    #filters { display: flex; gap: 8px; margin-bottom: 8px; flex-wrap: wrap; }
     #filters input, #filters select {
       background: var(--bg3); border: 1px solid var(--border); color: var(--white);
       font-family: 'DM Mono', monospace; font-size: 11px; border-radius: 6px; padding: 7px 10px;
@@ -84,6 +84,19 @@
     #filters input { flex: 2; }
     #filters select { flex: 1; }
     #filters input:focus, #filters select:focus { border-color: var(--gold); }
+
+    #filters2 { display: flex; flex-direction: column; gap: 8px; margin-bottom: 16px; padding: 10px 12px; background: var(--bg3); border: 1px solid var(--border); border-radius: 8px; }
+    .filter-row { display: flex; align-items: center; gap: 10px; }
+    .filter-label { color: var(--muted); font-size: 10px; letter-spacing: .5px; white-space: nowrap; min-width: 110px; }
+    #price-filter { flex: 1; -webkit-appearance: none; height: 3px; background: var(--bg2); border-radius: 2px; outline: none; cursor: pointer; }
+    #price-filter::-webkit-slider-thumb { -webkit-appearance: none; width: 14px; height: 14px; border-radius: 50%; background: var(--gold); cursor: pointer; }
+    #price-val { color: var(--gold); }
+    .sort-btns { display: flex; gap: 5px; }
+    .sort-btn { padding: 4px 10px; background: var(--bg2); border: 1px solid var(--border); border-radius: 20px; color: var(--muted); font-family: 'DM Mono', monospace; font-size: 9px; cursor: pointer; transition: all .2s; }
+    .sort-btn.active { background: var(--gold)22; border-color: var(--gold); color: var(--gold); }
+
+    /* Badge urgence */
+    .urgency-bar { height: 3px; border-radius: 2px; margin-top: 6px; }
 
     /* ── Grille vins ─────────────────────────────────────────── */
     #wine-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(160px, 1fr)); gap: 10px; }
@@ -103,6 +116,8 @@
     .wine-card .price-row { display: flex; justify-content: space-between; align-items: center; }
     .wine-card .price { color: var(--gold); font-size: 11px; }
     .wine-card .qty { color: var(--muted); font-size: 10px; }
+    .wine-card .details { color: var(--muted); font-size: 9px; margin: 4px 0; line-height: 1.5; border-top: 1px solid var(--border); padding-top: 6px; }
+    .wine-card .details span { color: var(--white); }
 
     /* ── Badges ──────────────────────────────────────────────── */
     .badge {
@@ -381,6 +396,23 @@
           <option value="">Tous types</option>
           <option>Rouge</option><option>Blanc</option><option>Rosé</option><option>Pétillant</option>
         </select>
+        <select id="region-filter" onchange="renderCave()">
+          <option value="">Toutes régions</option>
+        </select>
+      </div>
+      <div id="filters2">
+        <div class="filter-row">
+          <span class="filter-label">Prix max : <span id="price-val">500€</span></span>
+          <input type="range" id="price-filter" min="0" max="500" value="500" step="5" oninput="updatePriceLabel();renderCave()" />
+        </div>
+        <div class="filter-row">
+          <span class="filter-label">Trier par :</span>
+          <div class="sort-btns">
+            <button class="sort-btn active" id="sort-urgency" onclick="setSort('urgency',this)">⚠ Urgence</button>
+            <button class="sort-btn" id="sort-price" onclick="setSort('price',this)">€ Prix</button>
+            <button class="sort-btn" id="sort-rating" onclick="setSort('rating',this)">★ Note</button>
+          </div>
+        </div>
       </div>
       <div id="wine-grid"></div>
     </div>
@@ -514,6 +546,7 @@ async function loadWines() {
     const data = await api('list');
     wines = data.wines || [];
     updateHeader();
+    populateRegions();
     renderCave();
   } catch(e) {
     document.getElementById('wine-grid').innerHTML = `
@@ -536,29 +569,83 @@ function updateHeader() {
 // ════════════════════════════════════════════════════════════════
 //  VUE CAVE
 // ════════════════════════════════════════════════════════════════
-function renderCave() {
-  const q       = document.getElementById('search-input').value.toLowerCase();
-  const type    = document.getElementById('type-filter').value;
-  const year    = new Date().getFullYear();
+let currentSort = 'urgency';
 
-  const filtered = wines.filter(w => {
+function setSort(sort, btn) {
+  currentSort = sort;
+  document.querySelectorAll('.sort-btn').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+  renderCave();
+}
+
+function updatePriceLabel() {
+  const val = document.getElementById('price-filter').value;
+  document.getElementById('price-val').textContent = val >= 500 ? '500€+' : val + '€';
+}
+
+function populateRegions() {
+  const sel = document.getElementById('region-filter');
+  const regions = [...new Set(wines.map(w => w.region).filter(Boolean))].sort();
+  sel.innerHTML = '<option value="">Toutes régions</option>' + regions.map(r => `<option>${r}</option>`).join('');
+}
+
+function urgencyScore(w) {
+  // Score d'urgence : plus c'est petit, plus c'est urgent
+  const year = new Date().getFullYear();
+  if (!w.peakTo) return 9999;
+  const yearsLeft = w.peakTo - year;
+  if (yearsLeft < 0) return -1; // passé = très urgent
+  return yearsLeft;
+}
+
+function urgencyLabel(w) {
+  const year = new Date().getFullYear();
+  if (!w.peakTo) return { label: '?', color: '#555', barColor: '#555', barPct: 0 };
+  const yearsLeft = w.peakTo - year;
+  if (yearsLeft < 0)  return { label: 'Passé pic !', color: '#888', barColor: '#555', barPct: 100 };
+  if (yearsLeft === 0) return { label: 'Dernière année !', color: '#e05555', barColor: '#e05555', barPct: 100 };
+  if (yearsLeft <= 2)  return { label: `Boire avant ${w.peakTo}`, color: '#e0a030', barColor: '#e0a030', barPct: 85 };
+  if (yearsLeft <= 5)  return { label: `Jusqu'en ${w.peakTo}`, color: '#c9a84c', barColor: '#c9a84c', barPct: 55 };
+  const inPeak = year >= w.peakFrom;
+  if (inPeak)          return { label: `À point · ${w.peakTo}`, color: '#3a9b5a', barColor: '#3a9b5a', barPct: 30 };
+  return               { label: `Att. ${w.peakFrom}`, color: '#7ab8d4', barColor: '#7ab8d4', barPct: 10 };
+}
+
+function renderCave() {
+  const q        = document.getElementById('search-input').value.toLowerCase();
+  const type     = document.getElementById('type-filter').value;
+  const region   = document.getElementById('region-filter').value;
+  const priceMax = parseInt(document.getElementById('price-filter').value) || 500;
+  const year     = new Date().getFullYear();
+
+  let filtered = wines.filter(w => {
     const matchQ = !q || (w.name||'').toLowerCase().includes(q) || (w.region||'').toLowerCase().includes(q) || (w.grape||'').toLowerCase().includes(q);
-    const matchT = !type || w.type === type;
-    return matchQ && matchT;
+    const matchT = !type   || w.type   === type;
+    const matchR = !region || w.region === region;
+    const matchP = (w.price||0) <= priceMax || priceMax >= 500;
+    return matchQ && matchT && matchR && matchP;
   });
+
+  // Tri
+  if (currentSort === 'urgency') {
+    filtered.sort((a, b) => urgencyScore(a) - urgencyScore(b));
+  } else if (currentSort === 'price') {
+    filtered.sort((a, b) => (b.price||0) - (a.price||0));
+  } else if (currentSort === 'rating') {
+    filtered.sort((a, b) => (b.rating||0) - (a.rating||0));
+  }
 
   if (!filtered.length) {
     document.getElementById('wine-grid').innerHTML = `<div class="empty-state" style="grid-column:1/-1"><div class="icon">🔍</div><p>Aucun vin trouvé</p></div>`;
     return;
   }
 
+  const typeColor = w => TYPE_COLORS[w.type] || '#888';
+  const ratingPct = w => w.rating ? ((w.rating-80)/20*100) : 0;
+
   document.getElementById('wine-grid').innerHTML = filtered.map((w,i) => {
-    const inPeak = year >= w.peakFrom && year <= w.peakTo;
-    const tooYoung = year < w.peakFrom;
-    const peakColor = inPeak ? '#3a9b5a' : tooYoung ? '#e0a030' : '#555';
-    const peakLabel = inPeak ? 'À point' : tooYoung ? `Att. ${w.peakFrom}` : 'Passé';
-    const typeColor = TYPE_COLORS[w.type] || '#888';
-    const ratingPct = w.rating ? ((w.rating-80)/20*100) : 0;
+    const urg = urgencyLabel(w);
+    const tc  = typeColor(w);
     return `
       <div class="wine-card" onclick="openWineModal(${w.id})" style="animation-delay:${i*0.04}s">
         <div class="accent" style="background:linear-gradient(90deg,${w.color||'#8b1c1c'},transparent)"></div>
@@ -566,15 +653,23 @@ function renderCave() {
         <div class="name">${w.name}</div>
         <div class="meta">${FLAG[w.country]||'🌍'} ${w.region}${w.year ? ' · '+w.year : ''}</div>
         <div class="badges">
-          <span class="badge" style="border:1px solid ${typeColor}44;color:${typeColor};background:${typeColor}11">${w.type}</span>
-          <span class="badge" style="border:1px solid ${peakColor}44;color:${peakColor};background:${peakColor}11">${peakLabel}</span>
+          <span class="badge" style="border:1px solid ${tc}44;color:${tc};background:${tc}11">${w.type}</span>
         </div>
-        <div class="price-row">
+        <div class="details">
+          ${w.producer ? `Prod. <span>${w.producer}</span><br>` : ''}
+          ${w.domaine  ? `Dom. <span>${w.domaine}</span><br>`  : ''}
+          ${w.grape    ? `<span>${w.grape}</span>` : ''}
+        </div>
+        <div class="price-row" style="margin-bottom:4px">
           <span class="price">${w.price||'?'}€</span>
-          <span class="qty">× ${w.quantity||0}</span>
+          <span class="qty">× ${w.quantity||0} btl</span>
         </div>
-        <div class="rating-wrap">
-          <div class="rating-track"><div class="rating-fill" style="width:${ratingPct}%"></div></div>
+        <div style="color:${urg.color};font-size:10px;margin-bottom:3px">${urg.label}</div>
+        <div class="urgency-bar" style="background:var(--bg3)">
+          <div style="height:100%;width:${urg.barPct}%;background:${urg.barColor};border-radius:2px;transition:width .6s ease"></div>
+        </div>
+        <div class="rating-wrap" style="margin-top:6px">
+          <div class="rating-track"><div class="rating-fill" style="width:${ratingPct(w)}%"></div></div>
           <span class="rating-val">${w.rating||'–'}</span>
         </div>
       </div>`;
@@ -605,7 +700,12 @@ function openWineModal(id) {
       <div class="accent-line" style="background:linear-gradient(90deg,${w.color||'#8b1c1c'},transparent)"></div>
       <div style="font-size:32px;margin-bottom:8px">${w.img||'🍷'}</div>
       <div style="font-family:'Cormorant Garamond',serif;font-size:20px;font-weight:600;line-height:1.2;padding-right:32px">${w.name}</div>
-      <div style="color:var(--muted);font-size:11px;margin:4px 0 10px">${FLAG[w.country]||'🌍'} ${w.region}${w.year ? ' · '+w.year : ' · Sans millésime'} · ${w.grape||''}</div>
+      <div style="color:var(--muted);font-size:11px;margin:4px 0 6px">${FLAG[w.country]||'🌍'} ${w.region}${w.year ? ' · '+w.year : ' · Sans millésime'}</div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:4px;margin-bottom:10px;font-size:10px">
+        ${w.domaine   ? `<div style="color:var(--muted)">Domaine <span style="color:var(--white)">${w.domaine}</span></div>`   : ''}
+        ${w.producer  ? `<div style="color:var(--muted)">Producteur <span style="color:var(--white)">${w.producer}</span></div>` : ''}
+        ${w.grape     ? `<div style="color:var(--muted);grid-column:1/-1">Cépage <span style="color:var(--white)">${w.grape}</span></div>` : ''}
+      </div>
       <div style="display:flex;gap:6px;flex-wrap:wrap">
         <span class="badge" style="border:1px solid ${typeColor}44;color:${typeColor};background:${typeColor}11">${w.type}</span>
         <span class="badge" style="border:1px solid ${peakColor}44;color:${peakColor};background:${peakColor}11">${peakLabel}</span>
@@ -613,10 +713,20 @@ function openWineModal(id) {
       <button class="modal-close" onclick="closeModal('wine-modal')">×</button>
     </div>
     <div class="modal-body">
-      <div class="stat-row">
-        <div class="stat"><div class="val">${w.price||'?'}€</div><div class="lbl">Prix</div></div>
-        <div class="stat"><div class="val">${w.quantity||0} btl</div><div class="lbl">Stock</div></div>
+      <div class="stat-row" style="grid-template-columns:repeat(4,1fr)">
+        <div class="stat"><div class="val">${w.price||'?'}€</div><div class="lbl">Prix/btl</div></div>
+        <div class="stat"><div class="val">${w.quantity||0}</div><div class="lbl">Bouteilles</div></div>
+        <div class="stat"><div class="val">${((w.price||0)*(w.quantity||0)).toLocaleString()}€</div><div class="lbl">Valeur</div></div>
         <div class="stat"><div class="val">${w.rating||'–'}</div><div class="lbl">Note /100</div></div>
+      </div>
+      <div style="background:var(--bg3);border-radius:6px;padding:10px 14px;border:1px solid var(--border)">
+        <div style="color:var(--muted);font-size:9px;letter-spacing:1px;text-transform:uppercase;margin-bottom:6px">Urgence de consommation</div>
+        <div style="color:${(()=>{const yr=new Date().getFullYear();const yl=(w.peakTo||yr)-yr;return yl<0?'#888':yl<=2?'#e05555':yl<=5?'#e0a030':'#3a9b5a'})()};font-size:12px;margin-bottom:4px">
+          ${(()=>{const yr=new Date().getFullYear();const yl=(w.peakTo||9999)-yr;if(yl<0)return '⚠ Passé son pic de consommation';if(yl===0)return '🚨 Dernière année pour le consommer !';if(yl<=2)return '⏰ À boire dans les '+yl+' an'+(yl>1?'s':'');if(yl<=5)return '📅 Idéal jusqu\'en '+(w.peakTo);const inPeak=yr>=(w.peakFrom||0);return inPeak?'✓ À point maintenant, jusqu\'en '+(w.peakTo):'⏳ Attendre jusqu\'en '+(w.peakFrom)})()}
+        </div>
+        <div style="height:4px;background:var(--bg2);border-radius:2px">
+          <div style="height:100%;border-radius:2px;background:${(()=>{const yr=new Date().getFullYear();const yl=(w.peakTo||9999)-yr;return yl<0?'#555':yl<=2?'#e05555':yl<=5?'#e0a030':'#3a9b5a'})()};width:${(()=>{const yr=new Date().getFullYear();const yl=(w.peakTo||9999)-yr;return yl<0?100:yl===0?100:yl<=2?80:yl<=5?50:20})()}%"></div>
+        </div>
       </div>
 
       <div class="peak-wrap">
@@ -1089,7 +1199,7 @@ async function processChatMessage(text, imgB64, imgMime) {
 
   // Sinon → Claude décide quoi faire
   const payload = {
-    model: 'claude-sonnet-4-20250514',
+    model: 'claude-sonnet-4-5',
     max_tokens: 800,
     messages: [{ role: 'user', content:
       `Tu es l'assistant IA d'une cave à vin personnelle. Tu réponds TOUJOURS en JSON valide uniquement, sans backticks.
@@ -1118,13 +1228,11 @@ Règles strictes: JSON uniquement, message en français, pas de markdown.`
     }]
   };
 
-  const response = await fetch('https://api.anthropic.com/v1/messages', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(payload)
+  const chatApiRes = await api('chat', {
+    messages: payload.messages,
+    systemPrompt: payload.messages[0]?.content || ''
   });
-  const data = await response.json();
-  const raw = (data.content||[]).filter(b=>b.type==='text').map(b=>b.text).join('');
+  const raw = chatApiRes.reply || '{}';
   const parsed = JSON.parse(raw.replace(/```json|```/g,'').trim());
 
   if (parsed.intent === 'stock_update' && parsed.updates?.length) {
@@ -1257,6 +1365,330 @@ if ('serviceWorker' in navigator) {
 //  DÉMARRAGE
 // ════════════════════════════════════════════════════════════════
 loadWines();
+</script>
+
+<!-- ═══ CHATBOT WIDGET FLOTTANT ══════════════════════════════════ -->
+<style>
+  #chat-fab {
+    position: fixed; bottom: calc(24px + var(--safe-bot,0px)); right: 20px;
+    width: 52px; height: 52px; border-radius: 50%;
+    background: var(--gold); border: none; cursor: pointer;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 22px; box-shadow: 0 4px 20px rgba(0,0,0,.5);
+    z-index: 200; transition: transform .2s, box-shadow .2s;
+  }
+  #chat-fab:hover { transform: scale(1.08); box-shadow: 0 6px 28px rgba(0,0,0,.6); }
+  #chat-fab .badge {
+    position: absolute; top: -2px; right: -2px;
+    width: 16px; height: 16px; border-radius: 50%;
+    background: #e05555; color: #fff; font-size: 9px;
+    display: flex; align-items: center; justify-content: center;
+    font-family: 'DM Mono', monospace; display: none;
+  }
+
+  #chat-widget {
+    position: fixed; bottom: calc(88px + var(--safe-bot,0px)); right: 20px;
+    width: min(380px, calc(100vw - 40px));
+    height: min(520px, calc(100vh - 140px));
+    background: var(--bg2); border: 1px solid var(--border);
+    border-radius: 16px; box-shadow: 0 8px 40px rgba(0,0,0,.6);
+    z-index: 199; display: none; flex-direction: column;
+    overflow: hidden; animation: chatPop .25s cubic-bezier(.34,1.56,.64,1);
+  }
+  #chat-widget.open { display: flex; }
+  @keyframes chatPop {
+    from { opacity:0; transform: scale(.9) translateY(16px); }
+    to   { opacity:1; transform: none; }
+  }
+
+  #cw-header {
+    padding: 14px 16px; border-bottom: 1px solid var(--border);
+    display: flex; align-items: center; gap: 10px; flex-shrink: 0;
+    background: var(--bg3);
+  }
+  #cw-header .avatar { font-size: 20px; }
+  #cw-header .title { flex:1; }
+  #cw-header .title div:first-child { font-family:'Cormorant Garamond',serif; font-size:15px; }
+  #cw-header .title div:last-child  { color:var(--muted); font-size:9px; letter-spacing:1px; text-transform:uppercase; }
+  #cw-close { background:none; border:none; color:var(--muted); font-size:18px; cursor:pointer; padding:2px 6px; }
+
+  #cw-messages {
+    flex:1; overflow-y:auto; padding:12px; display:flex;
+    flex-direction:column; gap:10px; scroll-behavior:smooth;
+  }
+  #cw-messages::-webkit-scrollbar { width:3px; }
+  #cw-messages::-webkit-scrollbar-thumb { background:var(--gold-dim); border-radius:2px; }
+
+  .cw-msg { display:flex; gap:8px; animation: msgIn .2s ease both; }
+  .cw-msg.user { flex-direction:row-reverse; }
+  .cw-avatar { width:26px; height:26px; border-radius:50%; flex-shrink:0; display:flex; align-items:center; justify-content:center; font-size:12px; margin-top:2px; }
+  .cw-avatar.bot  { background:var(--bg3); border:1px solid var(--border); }
+  .cw-avatar.user { background:var(--gold-dim); }
+  .cw-bubble {
+    max-width: calc(100% - 60px); padding:8px 12px; border-radius:12px;
+    font-size:12px; line-height:1.55;
+  }
+  .cw-msg.bot  .cw-bubble { background:var(--bg3); border:1px solid var(--border); border-radius:3px 12px 12px 12px; }
+  .cw-msg.user .cw-bubble { background:rgba(201,168,76,.15); border:1px solid rgba(201,168,76,.2); border-radius:12px 3px 12px 12px; }
+  .cw-typing span { width:5px;height:5px;background:var(--muted);border-radius:50%;display:inline-block;animation:typingDot 1.2s ease infinite; }
+  .cw-typing span:nth-child(2){animation-delay:.2s} .cw-typing span:nth-child(3){animation-delay:.4s}
+
+  #cw-input-area {
+    border-top:1px solid var(--border); padding:10px 12px;
+    display:flex; gap:8px; align-items:flex-end; background:var(--bg3); flex-shrink:0;
+  }
+  #cw-input {
+    flex:1; background:var(--bg2); border:1px solid var(--border); color:var(--white);
+    font-family:'DM Mono',monospace; font-size:12px; border-radius:16px;
+    padding:7px 12px; outline:none; resize:none; max-height:80px; line-height:1.4;
+  }
+  #cw-input:focus { border-color:var(--gold); }
+  #cw-send {
+    width:34px; height:34px; border-radius:50%; background:var(--gold);
+    border:none; color:#0d0b09; font-size:14px; cursor:pointer; flex-shrink:0;
+    display:flex; align-items:center; justify-content:center;
+  }
+  #cw-send:disabled { background:var(--bg2); color:var(--muted); }
+  #cw-photo-btn {
+    width:34px; height:34px; border-radius:50%; background:var(--bg2);
+    border:1px solid var(--border); color:var(--white); font-size:14px;
+    cursor:pointer; flex-shrink:0; display:flex; align-items:center; justify-content:center;
+  }
+</style>
+
+<!-- FAB bouton -->
+<button id="chat-fab" onclick="toggleChatWidget()" title="Sommelier IA">
+  🍾
+  <div class="badge" id="chat-badge"></div>
+</button>
+
+<!-- Widget chat -->
+<div id="chat-widget">
+  <div id="cw-header">
+    <div class="avatar">🍾</div>
+    <div class="title">
+      <div>Sommelier IA</div>
+      <div>Photo · Vocal · Texte</div>
+    </div>
+    <button id="cw-close" onclick="toggleChatWidget()">×</button>
+  </div>
+  <div id="cw-messages"></div>
+  <div id="cw-input-area">
+    <button id="cw-photo-btn" onclick="document.getElementById('cw-photo-input').click()" title="Photo">📸</button>
+    <input type="file" id="cw-photo-input" accept="image/*" capture="environment" style="display:none" onchange="cwHandlePhoto(this)" />
+    <textarea id="cw-input" rows="1" placeholder="Question ou photo d'étiquette…"
+      oninput="cwResize(this);cwUpdateSend()"
+      onkeydown="if(event.key==='Enter'&&!event.shiftKey){event.preventDefault();cwSend()}"></textarea>
+    <button id="cw-send" onclick="cwSend()" disabled>↑</button>
+  </div>
+</div>
+
+<script>
+// ═══ WIDGET CHAT ══════════════════════════════════════════════
+let cwOpen = false;
+let cwHistory = [];
+let cwPendingPhoto = null;
+let cwInitialized = false;
+
+function toggleChatWidget() {
+  cwOpen = !cwOpen;
+  const widget = document.getElementById('chat-widget');
+  widget.classList.toggle('open', cwOpen);
+  document.getElementById('chat-fab').innerHTML = cwOpen ? '×<div class="badge" id="chat-badge"></div>' : '🍾<div class="badge" id="chat-badge"></div>';
+  document.getElementById('chat-fab').style.background = cwOpen ? 'var(--bg3)' : 'var(--gold)';
+  document.getElementById('chat-fab').style.color = cwOpen ? 'var(--white)' : '#0d0b09';
+  document.getElementById('chat-fab').style.border = cwOpen ? '1px solid var(--border)' : 'none';
+  if (cwOpen && !cwInitialized) {
+    cwInitialized = true;
+    cwAddBot(`Bonjour ! Je peux vous aider à :<br>• <strong>Ajouter un vin</strong> — photo ou description<br>• <strong>Sortir une bouteille</strong> — dites-le moi<br>• <strong>Vous conseiller</strong> — dîner, occasion, budget`);
+  }
+  if (cwOpen) setTimeout(() => document.getElementById('cw-input').focus(), 100);
+}
+
+function cwResize(el) {
+  el.style.height = 'auto';
+  el.style.height = Math.min(el.scrollHeight, 80) + 'px';
+}
+
+function cwUpdateSend() {
+  const val = document.getElementById('cw-input').value.trim();
+  document.getElementById('cw-send').disabled = !val && !cwPendingPhoto;
+}
+
+function cwScroll() {
+  const el = document.getElementById('cw-messages');
+  el.scrollTop = el.scrollHeight;
+}
+
+function cwAddBot(html, typing = false) {
+  const msgs = document.getElementById('cw-messages');
+  if (typing) {
+    const d = document.createElement('div');
+    d.className = 'cw-msg bot'; d.id = 'cw-typing';
+    d.innerHTML = `<div class="cw-avatar bot">🍾</div><div class="cw-bubble"><div class="cw-typing"><span></span><span></span><span></span></div></div>`;
+    msgs.appendChild(d);
+  } else {
+    const d = document.createElement('div');
+    d.className = 'cw-msg bot';
+    d.innerHTML = `<div class="cw-avatar bot">🍾</div><div class="cw-bubble">${html}</div>`;
+    msgs.appendChild(d);
+  }
+  cwScroll();
+}
+
+function cwAddUser(text, imgSrc) {
+  const msgs = document.getElementById('cw-messages');
+  const d = document.createElement('div');
+  d.className = 'cw-msg user';
+  d.innerHTML = `<div class="cw-avatar user">👤</div><div class="cw-bubble">${imgSrc ? `<img src="${imgSrc}" style="max-height:80px;border-radius:6px;display:block;margin-bottom:4px" />` : ''}${text ? text : ''}</div>`;
+  msgs.appendChild(d);
+  cwScroll();
+}
+
+function cwRemoveTyping() { document.getElementById('cw-typing')?.remove(); }
+
+function cwHandlePhoto(input) {
+  const file = input.files[0]; if (!file) return;
+  const reader = new FileReader();
+  reader.onload = e => {
+    cwPendingPhoto = { b64: e.target.result.split(',')[1], mime: file.type, preview: e.target.result };
+    document.getElementById('cw-photo-btn').style.background = 'var(--gold)44';
+    document.getElementById('cw-photo-btn').style.borderColor = 'var(--gold)';
+    cwUpdateSend();
+  };
+  reader.readAsDataURL(file);
+  input.value = '';
+}
+
+async function cwSend() {
+  const input = document.getElementById('cw-input');
+  const text  = input.value.trim();
+  if (!text && !cwPendingPhoto) return;
+
+  cwAddUser(text, cwPendingPhoto?.preview);
+  input.value = ''; cwResize(input); cwUpdateSend();
+
+  const photo = cwPendingPhoto;
+  cwPendingPhoto = null;
+  document.getElementById('cw-photo-btn').style.background = '';
+  document.getElementById('cw-photo-btn').style.borderColor = '';
+
+  cwHistory.push({ role: 'user', content: text || 'Voici une photo.' });
+  cwAddBot('', true);
+
+  try {
+    await cwProcess(text, photo);
+  } catch(e) {
+    cwRemoveTyping();
+    cwAddBot('Désolé, une erreur est survenue.');
+  }
+}
+
+async function cwProcess(text, photo) {
+  const caveSummary = wines.map(w =>
+    `ID:${w.id}|${w.name} ${w.year||'NM'}|${w.type}|${w.region}|${w.price}€|stock:${w.quantity}|pic:${w.peakFrom}-${w.peakTo}`
+  ).join('\n');
+
+  const systemPrompt = `Tu es le sommelier personnel d'un amateur de vin. Tu gères sa cave.
+CAVE: ${caveSummary || 'vide'}
+ACTIONS: 
+- Liste de vins → ACTION:ADD_BULK puis texte brut
+- 1 vin texte → ACTION:ANALYZE  
+- Sortir vin → ACTION:CHECKOUT:<id>:<qty>
+- Conseil/question → réponds directement 3-5 phrases en français`;
+
+  if (photo) {
+    cwRemoveTyping();
+    await cwAnalyze(photo, text);
+    return;
+  }
+
+  const messages = cwHistory.slice(-6).filter(h => typeof h.content === 'string');
+  const data = await api('chat', { messages, systemPrompt });
+  const reply = data.reply || '';
+  cwHistory.push({ role: 'assistant', content: reply });
+  cwRemoveTyping();
+
+  if (reply.startsWith('ACTION:ADD_BULK')) {
+    cwAddBot('🍷 Analyse en cours…');
+    const raw = reply.replace('ACTION:ADD_BULK','').trim();
+    const res = await api('addBulkFromText', { text: raw });
+    if (res.wines?.length) {
+      res.wines.forEach(w => wines.push(w));
+      updateHeader(); populateRegions(); renderCave();
+      const summary = res.wines.map(w => `• <strong>${w.name}</strong> ${w.year||'NM'} — ${w.quantity} btl`).join('<br>');
+      cwAddBot(`✦ <strong>${res.wines.length} vins ajoutés !</strong><br>${summary}`);
+    } else {
+      cwAddBot("Erreur lors de l'ajout. Réessayez avec une photo.");
+    }
+  } else if (reply.startsWith('ACTION:ANALYZE')) {
+    cwAddBot("Envoyez une photo de l'étiquette pour que je puisse l'analyser.");
+  } else if (reply.startsWith('ACTION:CHECKOUT:')) {
+    const parts = reply.split(':');
+    const id = parts[2], qty = parseInt(parts[3])||1;
+    const res = await api('checkout', { id, qty });
+    const w = wines.find(x => String(x.id)===String(id));
+    if (res.deleted) { wines = wines.filter(x => String(x.id)!==String(id)); }
+    else if (w) { w.quantity = res.newQuantity; }
+    updateHeader(); renderCave();
+    cwAddBot(reply.split('\n').slice(1).join('<br>') || `Bouteille sortie ! Stock restant : ${res.newQuantity ?? 0}`);
+  } else {
+    cwAddBot(reply.replace(/\n/g,'<br>').replace(/\*\*(.*?)\*\*/g,'<strong>$1</strong>'));
+  }
+}
+
+async function cwAnalyze(photo, description) {
+  try {
+    const res = await api('analyze', { description, imageBase64: photo.b64, imageMimeType: photo.mime });
+    const w = res.wine;
+    const tc = {Rouge:'#c0392b',Blanc:'#d4a843',Rosé:'#e8829a',Pétillant:'#7ab8d4'}[w.type]||'#888';
+    const msgDiv = document.createElement('div');
+    msgDiv.className = 'cw-msg bot';
+    msgDiv.innerHTML = `
+      <div class="cw-avatar bot">🍾</div>
+      <div class="cw-bubble">
+        <div style="font-family:'Cormorant Garamond',serif;font-size:15px;font-weight:600">${w.name}</div>
+        <div style="color:var(--muted);font-size:10px;margin:2px 0 6px">${w.region}${w.year?' · '+w.year:''} · ${w.grape||''}</div>
+        <div style="display:flex;gap:5px;flex-wrap:wrap;margin-bottom:8px">
+          <span style="border:1px solid ${tc}44;color:${tc};background:${tc}11;padding:2px 7px;border-radius:20px;font-size:9px">${w.type}</span>
+          <span style="border:1px solid var(--gold)44;color:var(--gold);background:var(--gold)11;padding:2px 7px;border-radius:20px;font-size:9px">${w.price||'?'}€</span>
+        </div>
+        <div style="font-style:italic;font-family:'Cormorant Garamond',serif;font-size:13px;margin-bottom:10px">${w.notes||''}</div>
+        <div style="display:flex;align-items:center;gap:8px;margin-bottom:10px">
+          <span style="color:var(--muted);font-size:10px">Bouteilles :</span>
+          <input type="number" id="cw-qty" value="${w.quantity||1}" min="1" max="99"
+            style="width:52px;background:var(--bg2);border:1px solid var(--border);color:var(--white);font-family:'DM Mono',monospace;font-size:12px;border-radius:4px;padding:3px 6px;outline:none;text-align:center" />
+        </div>
+        <div style="display:flex;gap:6px">
+          <button onclick="this.closest('.cw-msg').remove();cwAddBot("Ajout annulé.")"
+            style="flex:1;padding:7px;background:none;border:1px solid var(--border);border-radius:6px;color:var(--muted);font-family:'DM Mono',monospace;font-size:10px;cursor:pointer">Annuler</button>
+          <button onclick="cwConfirmAdd(${JSON.stringify(w).replace(/"/g,'&quot;')},this)"
+            style="flex:2;padding:7px;background:var(--gold);border:none;border-radius:6px;color:#0d0b09;font-family:'DM Mono',monospace;font-size:10px;cursor:pointer">✦ Ajouter</button>
+        </div>
+      </div>`;
+    document.getElementById('cw-messages').appendChild(msgDiv);
+    cwScroll();
+  } catch(e) {
+    cwAddBot("Je n'ai pas pu analyser ce vin. Ajoutez une description.");
+  }
+}
+
+async function cwConfirmAdd(wine, btn) {
+  const qty = parseInt(document.getElementById('cw-qty')?.value)||1;
+  wine.quantity = qty;
+  btn.disabled = true; btn.textContent = '…';
+  try {
+    const res = await api('add', { wine });
+    wine.id = res.id;
+    wines.push(wine);
+    updateHeader(); populateRegions(); renderCave();
+    btn.closest('.cw-msg').remove();
+    cwAddBot(`✦ <strong>${wine.name}</strong> ajouté ! (${qty} bouteille${qty>1?'s':''})`);
+  } catch(e) {
+    btn.disabled = false; btn.textContent = '✦ Ajouter';
+    cwAddBot("Erreur lors de l'ajout.");
+  }
+}
 </script>
 </body>
 </html>
