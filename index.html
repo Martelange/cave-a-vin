@@ -421,13 +421,13 @@
     <!-- Étagères -->
     <div id="tab-etageres" style="display:none"></div>
 
-    <!-- Chat IA -->
-  <span id="sync-text">Synchronisé</span>
+  <!-- Indicateur sync -->
+  <div id="sync-indicator" class="sync-indicator" style="display:none">
+    <div class="sync-dot ok" id="sync-dot"></div>
+    <span id="sync-text">Synchronisé</span>
+  </div>
 </div>
 
-
-<!-- Barre input Chat -->
-<div id="chat-input-bar">
   <div style="display:flex;flex-direction:column;flex:1;gap:6px">
     <div id="chat-img-preview-wrap" class="chat-img-preview-wrap" style="display:none">
       <img id="chat-img-preview" class="chat-img-preview" />
@@ -496,9 +496,10 @@ async function api(action, body = {}) {
 }
 
 function showSync(state, text) {
-  const el = document.getElementById('sync-indicator');
+  const el  = document.getElementById('sync-indicator');
   const dot = document.getElementById('sync-dot');
   const txt = document.getElementById('sync-text');
+  if (!el || !dot || !txt) return; // éléments absents → ignorer
   el.style.display = 'flex';
   dot.className = 'sync-dot ' + state;
   txt.textContent = text;
@@ -1030,16 +1031,10 @@ function switchTab(tab, btn) {
   currentTab = tab;
   document.querySelectorAll('#nav button').forEach(b => b.classList.remove('active'));
   btn.classList.add('active');
-  ['cave','dashboard','etageres','sommelier','chat'].forEach(t => {
-    document.getElementById('tab-'+t).style.display = t === tab ? '' : 'none';
+  ['cave','dashboard','etageres'].forEach(t => {
+    const el = document.getElementById('tab-'+t);
+    if (el) el.style.display = t === tab ? '' : 'none';
   });
-  const bar = document.getElementById('chat-input-bar');
-  if (tab === 'chat') {
-    bar.classList.add('visible');
-    if (chatHistory.length === 0) initChat();
-  } else {
-    bar.classList.remove('visible');
-  }
   if (tab === 'dashboard') renderDashboard();
   if (tab === 'etageres')  renderEtageres();
 }
