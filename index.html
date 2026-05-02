@@ -1479,11 +1479,11 @@ function cwAddBot(html, typing = false) {
   cwScroll();
 }
 
-function cwAddUser(text, imgSrc) {
+function cwAddUser(text) {
   const msgs = document.getElementById('cw-messages');
   const d = document.createElement('div');
   d.className = 'cw-msg user';
-  d.innerHTML = `<div class="cw-avatar user">👤</div><div class="cw-bubble">${imgSrc ? `<img src="${imgSrc}" style="max-height:80px;border-radius:6px;display:block;margin-bottom:4px" />` : ''}${text ? text : ''}</div>`;
+  d.innerHTML = `<div class="cw-avatar user">👤</div><div class="cw-bubble">${text || ''}</div>`;
   msgs.appendChild(d);
   cwScroll();
 }
@@ -1556,15 +1556,12 @@ function cwStopVoice() {
 async function cwSend() {
   const input = document.getElementById('cw-input');
   const text  = input.value.trim();
-  if (!text && !cwPendingPhoto) return;
+  if (!text) return;
 
-  cwAddUser(text, cwPendingPhoto?.preview);
+  cwAddUser(text);
   input.value = ''; cwResize(input); cwUpdateSend();
 
-  
-  
-
-  cwHistory.push({ role: 'user', content: text || 'Voici une photo.' });
+  cwHistory.push({ role: 'user', content: text });
   cwAddBot('', true);
 
   try {
@@ -1587,12 +1584,6 @@ ACTIONS:
 - 1 vin texte → ACTION:ANALYZE  
 - Sortir vin → ACTION:CHECKOUT:<id>:<qty>
 - Conseil/question → réponds directement 3-5 phrases en français`;
-
-  if (photo) {
-    cwRemoveTyping();
-    await cwAnalyze(photo, text);
-    return;
-  }
 
   const messages = cwHistory.slice(-6).filter(h => typeof h.content === 'string');
   const data = await api('chat', { messages, systemPrompt });
