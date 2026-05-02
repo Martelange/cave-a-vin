@@ -1,0 +1,768 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+  <meta name="theme-color" content="#0d0b09" />
+  <meta name="mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+  <title>Sommelier · Ma Cave</title>
+
+  <!-- ═══ CONFIGURATION ═══════════════════════════════════════════════════════ -->
+  <script>
+    const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbycxxpTM9fQJjEA87WNq_1lItIr-Qka3iJK9bmxzpledx0w8S_Uxuxt_FUsic3Vf-16xA/exec";
+    // Même URL que dans index.html
+  </script>
+  <!-- ══════════════════════════════════════════════════════════════════════════ -->
+
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;0,600;1,300;1,400&family=DM+Mono:wght@300;400&display=swap" rel="stylesheet" />
+
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg:       #0d0b09;
+      --bg2:      #141210;
+      --bg3:      #1c1916;
+      --border:   rgba(180,140,80,.18);
+      --gold:     #c9a84c;
+      --gold-dim: #8a6a28;
+      --red:      #8b1c1c;
+      --white:    #f0ebe2;
+      --muted:    #7a6f5e;
+      --safe-top: env(safe-area-inset-top, 0px);
+      --safe-bot: env(safe-area-inset-bottom, 0px);
+    }
+
+    html, body {
+      height: 100%; background: var(--bg); color: var(--white);
+      font-family: 'DM Mono', monospace; font-size: 13px; overflow: hidden;
+    }
+
+    /* ── Layout ───────────────────────────────────── */
+    #app { display: flex; flex-direction: column; height: 100%; }
+
+    /* ── Header ───────────────────────────────────── */
+    #header {
+      padding: calc(10px + var(--safe-top)) 16px 10px;
+      border-bottom: 1px solid var(--border);
+      display: flex; align-items: center; gap: 12px;
+      background: var(--bg); flex-shrink: 0; position: relative; z-index: 10;
+    }
+    #header a {
+      color: var(--muted); text-decoration: none; font-size: 18px; line-height: 1;
+      padding: 4px 8px; border: 1px solid var(--border); border-radius: 6px;
+    }
+    #header a:active { background: var(--bg3); }
+    #header .title-block { flex: 1; }
+    #header h1 { font-family: 'Cormorant Garamond', serif; font-size: 18px; font-weight: 400; letter-spacing: 1px; }
+    #header .sub { font-size: 10px; color: var(--muted); letter-spacing: 1.5px; text-transform: uppercase; }
+
+    /* ── Messages ─────────────────────────────────── */
+    #messages {
+      flex: 1; overflow-y: auto; padding: 16px;
+      display: flex; flex-direction: column; gap: 12px;
+      scroll-behavior: smooth;
+    }
+    #messages::-webkit-scrollbar { width: 3px; }
+    #messages::-webkit-scrollbar-thumb { background: var(--gold-dim); border-radius: 2px; }
+
+    .msg { display: flex; gap: 10px; animation: msgIn .25s ease both; max-width: 100%; }
+    .msg.user { flex-direction: row-reverse; }
+
+    @keyframes msgIn { from { opacity:0; transform: translateY(6px); } to { opacity:1; transform:none; } }
+
+    .avatar {
+      width: 30px; height: 30px; border-radius: 50%; flex-shrink: 0;
+      display: flex; align-items: center; justify-content: center; font-size: 14px;
+      margin-top: 2px;
+    }
+    .avatar.bot { background: var(--bg3); border: 1px solid var(--border); }
+    .avatar.user { background: var(--gold-dim); }
+
+    .bubble {
+      max-width: calc(100% - 80px);
+      padding: 10px 14px; border-radius: 14px; line-height: 1.6; font-size: 12.5px;
+      position: relative;
+    }
+    .msg.bot .bubble {
+      background: var(--bg2); border: 1px solid var(--border);
+      border-radius: 4px 14px 14px 14px;
+    }
+    .msg.user .bubble {
+      background: var(--bg3); border: 1px solid rgba(201,168,76,.25);
+      border-radius: 14px 4px 14px 14px; text-align: right;
+    }
+
+    /* Message spéciaux */
+    .bubble.italic { font-family: 'Cormorant Garamond', serif; font-size: 15px; font-style: italic; color: var(--white); }
+    .bubble .wine-card-inline {
+      background: var(--bg3); border: 1px solid rgba(201,168,76,.3); border-radius: 8px;
+      padding: 12px; margin-top: 8px;
+    }
+    .bubble .wine-card-inline .name { font-family: 'Cormorant Garamond', serif; font-size: 16px; font-weight: 600; }
+    .bubble .wine-card-inline .meta { color: var(--muted); font-size: 10px; margin: 3px 0 8px; }
+    .bubble .wine-card-inline .note-italic { font-family: 'Cormorant Garamond', serif; font-size: 13px; font-style: italic; line-height: 1.5; margin-bottom: 8px; }
+    .bubble .badges { display: flex; gap: 5px; flex-wrap: wrap; margin-bottom: 8px; }
+    .badge { display:inline-block; padding:2px 8px; border-radius:20px; font-size:9px; letter-spacing:.8px; text-transform:uppercase; }
+    .bubble .confirm-row { display: flex; gap: 6px; margin-top: 10px; }
+    .btn-confirm-add { flex:1; padding:8px; background:var(--gold); border:none; border-radius:6px; color:#0d0b09; font-family:'DM Mono',monospace; font-size:11px; cursor:pointer; }
+    .btn-cancel { flex:1; padding:8px; background:none; border:1px solid var(--border); border-radius:6px; color:var(--muted); font-family:'DM Mono',monospace; font-size:11px; cursor:pointer; }
+
+    /* Image dans bulle */
+    .bubble img.thumb { max-height: 140px; border-radius: 8px; object-fit: cover; margin-bottom: 4px; display: block; }
+
+    /* Typing indicator */
+    .typing { display: flex; gap: 4px; align-items: center; padding: 4px 0; }
+    .typing span {
+      width: 6px; height: 6px; background: var(--muted); border-radius: 50%;
+      animation: typingDot 1.2s ease infinite;
+    }
+    .typing span:nth-child(2) { animation-delay: .2s; }
+    .typing span:nth-child(3) { animation-delay: .4s; }
+    @keyframes typingDot { 0%,80%,100%{opacity:.3;transform:scale(.8)} 40%{opacity:1;transform:scale(1)} }
+
+    /* Suggestions rapides */
+    #suggestions {
+      padding: 0 16px 10px; display: flex; gap: 6px; overflow-x: auto; flex-shrink: 0;
+      scrollbar-width: none;
+    }
+    #suggestions::-webkit-scrollbar { display: none; }
+    .sugg-btn {
+      background: var(--bg3); border: 1px solid var(--border); border-radius: 20px;
+      color: var(--muted); font-family: 'DM Mono', monospace; font-size: 10px;
+      padding: 5px 12px; cursor: pointer; white-space: nowrap; flex-shrink: 0;
+      transition: border-color .2s, color .2s;
+    }
+    .sugg-btn:active { border-color: var(--gold); color: var(--gold); }
+
+    /* ── Zone de saisie ───────────────────────────── */
+    #input-area {
+      border-top: 1px solid var(--border); background: var(--bg);
+      padding: 10px 12px calc(10px + var(--safe-bot)); flex-shrink: 0;
+    }
+
+    /* Aperçu photo */
+    #photo-preview-bar {
+      display: none; align-items: center; gap: 8px;
+      background: var(--bg3); border: 1px solid var(--border);
+      border-radius: 8px; padding: 6px 10px; margin-bottom: 8px;
+    }
+    #photo-preview-bar img { height: 40px; border-radius: 4px; object-fit: cover; }
+    #photo-preview-bar .remove { background:none; border:none; color:var(--muted); font-size:16px; cursor:pointer; margin-left:auto; padding:2px 4px; }
+
+    /* Transcription vocale en cours */
+    #voice-preview {
+      display: none; background: var(--bg3); border: 1px solid rgba(201,168,76,.3);
+      border-radius: 8px; padding: 8px 12px; margin-bottom: 8px;
+      font-style: italic; color: var(--gold); font-size: 12px;
+    }
+
+    .input-row { display: flex; align-items: flex-end; gap: 8px; }
+
+    #text-input {
+      flex: 1; background: var(--bg3); border: 1px solid var(--border);
+      color: var(--white); font-family: 'DM Mono', monospace; font-size: 12px;
+      border-radius: 20px; padding: 9px 14px; outline: none; resize: none;
+      max-height: 100px; line-height: 1.5; transition: border-color .2s;
+      overflow-y: auto;
+    }
+    #text-input:focus { border-color: var(--gold); }
+    #text-input::placeholder { color: var(--muted); }
+
+    .icon-btn {
+      width: 38px; height: 38px; border-radius: 50%; border: 1px solid var(--border);
+      background: var(--bg3); color: var(--white); font-size: 16px;
+      display: flex; align-items: center; justify-content: center; cursor: pointer;
+      flex-shrink: 0; transition: all .2s;
+    }
+    .icon-btn:active { background: var(--bg2); border-color: var(--gold); }
+    .icon-btn.recording { background: var(--red); border-color: var(--red); animation: pulse .8s ease infinite; }
+    @keyframes pulse { 0%,100%{transform:scale(1)} 50%{transform:scale(1.08)} }
+
+    #send-btn {
+      width: 38px; height: 38px; border-radius: 50%; border: none;
+      background: var(--gold); color: #0d0b09; font-size: 16px;
+      display: flex; align-items: center; justify-content: center; cursor: pointer;
+      flex-shrink: 0; transition: all .2s;
+    }
+    #send-btn:disabled { background: var(--bg3); color: var(--muted); }
+    #send-btn:not(:disabled):active { transform: scale(.93); }
+
+    /* Input fichier caché */
+    #photo-input { display: none; }
+  </style>
+</head>
+<body>
+<div id="app">
+
+  <!-- Header -->
+  <div id="header">
+    <a href="index.html">←</a>
+    <div class="title-block">
+      <h1>🍾 Sommelier</h1>
+      <div class="sub">IA · Photo · Vocal · Texte</div>
+    </div>
+  </div>
+
+  <!-- Messages -->
+  <div id="messages">
+    <!-- Message de bienvenue injecté par JS -->
+  </div>
+
+  <!-- Suggestions rapides -->
+  <div id="suggestions">
+    <button class="sugg-btn" onclick="sendSuggestion('Prendre une photo d\'étiquette')">📸 Photo étiquette</button>
+    <button class="sugg-btn" onclick="sendSuggestion('Je sors une bouteille de ce soir')">🍷 Sortir une bouteille</button>
+    <button class="sugg-btn" onclick="sendSuggestion('Conseille-moi un vin pour un dîner')">🍽 Conseil dîner</button>
+    <button class="sugg-btn" onclick="sendSuggestion('C\'est quoi mon meilleur vin ?')">⭐ Mon meilleur vin</button>
+    <button class="sugg-btn" onclick="sendSuggestion('Qu\'est-ce que j\'ai à boire maintenant ?')">✓ À boire maintenant</button>
+  </div>
+
+  <!-- Zone saisie -->
+  <div id="input-area">
+    <!-- Aperçu photo -->
+    <div id="photo-preview-bar">
+      <img id="photo-preview-img" src="" alt="" />
+      <span id="photo-preview-name" style="color:var(--muted);font-size:10px;flex:1"></span>
+      <button class="remove" onclick="removePhoto()">×</button>
+    </div>
+
+    <!-- Transcription vocale -->
+    <div id="voice-preview" id="voice-preview"></div>
+
+    <div class="input-row">
+      <!-- Bouton photo -->
+      <button class="icon-btn" onclick="document.getElementById('photo-input').click()" title="Ajouter une photo">📸</button>
+      <input type="file" id="photo-input" accept="image/*" capture="environment" onchange="handlePhotoSelect(this)" />
+
+      <!-- Bouton vocal -->
+      <button class="icon-btn" id="voice-btn" onclick="toggleVoice()" title="Message vocal">🎙</button>
+
+      <!-- Zone texte -->
+      <textarea id="text-input" placeholder="Photo, vocal ou texte…" rows="1"
+        oninput="autoResize(this)"
+        onkeydown="if(event.key==='Enter'&&!event.shiftKey){event.preventDefault();sendMessage()}"
+      ></textarea>
+
+      <!-- Envoyer -->
+      <button id="send-btn" onclick="sendMessage()" disabled>↑</button>
+    </div>
+  </div>
+</div>
+
+<script>
+// ════════════════════════════════════════════════════════════════
+//  UTILITAIRES (déclarés en premier pour les handlers HTML inline)
+// ════════════════════════════════════════════════════════════════
+function autoResize(el) {
+  el.style.height = 'auto';
+  el.style.height = Math.min(el.scrollHeight, 100) + 'px';
+}
+
+// ════════════════════════════════════════════════════════════════
+//  ÉTAT
+// ════════════════════════════════════════════════════════════════
+let wines = [];
+let pendingPhoto = null;   // { b64, mime, preview, name }
+let pendingWine  = null;   // vin analysé en attente de confirmation
+let isRecording  = false;
+let mediaRecorder = null;
+let audioChunks  = [];
+let conversationHistory = []; // pour le contexte multi-tour
+
+// ════════════════════════════════════════════════════════════════
+//  INIT
+// ════════════════════════════════════════════════════════════════
+async function init() {
+  addBotMessage(`Bonjour ! Je suis votre sommelier IA. Je peux :
+
+• **Ajouter un vin** — envoyez une photo d'étiquette ou décrivez-le
+• **Mettre à jour le stock** — dites-moi ce que vous sortez
+• **Vous conseiller** — dîner, occasion, budget…
+
+Comment puis-je vous aider ?`, 'italic');
+
+  try {
+    const res = await callScript('list');
+    wines = res.wines || [];
+  } catch(e) {
+    addBotMessage('⚠️ Impossible de charger la cave. Vérifiez l\'URL du script dans la configuration.');
+  }
+
+  document.getElementById('text-input').addEventListener('input', updateSendBtn);
+}
+
+// ════════════════════════════════════════════════════════════════
+//  APPEL GOOGLE APPS SCRIPT
+// ════════════════════════════════════════════════════════════════
+async function callScript(action, body = {}) {
+  const res = await fetch(SCRIPT_URL + '?action=' + action, {
+    method: 'POST',
+    body: JSON.stringify({ action, ...body }),
+  });
+  const data = await res.json();
+  if (data.error) throw new Error(data.error);
+  return data;
+}
+
+// ════════════════════════════════════════════════════════════════
+//  MESSAGES UI
+// ════════════════════════════════════════════════════════════════
+function addBotMessage(text, cls = '') {
+  const div = document.createElement('div');
+  div.className = 'msg bot';
+  div.innerHTML = `
+    <div class="avatar bot">🍾</div>
+    <div class="bubble ${cls}">${formatText(text)}</div>`;
+  document.getElementById('messages').appendChild(div);
+  scrollBottom();
+  return div;
+}
+
+function addUserMessage(text, imgSrc = null) {
+  const div = document.createElement('div');
+  div.className = 'msg user';
+  div.innerHTML = `
+    <div class="avatar user">👤</div>
+    <div class="bubble">
+      ${imgSrc ? `<img class="thumb" src="${imgSrc}" />` : ''}
+      ${text ? `<div>${text}</div>` : ''}
+    </div>`;
+  document.getElementById('messages').appendChild(div);
+  scrollBottom();
+}
+
+function addTyping() {
+  const div = document.createElement('div');
+  div.className = 'msg bot';
+  div.id = 'typing-indicator';
+  div.innerHTML = `
+    <div class="avatar bot">🍾</div>
+    <div class="bubble"><div class="typing"><span></span><span></span><span></span></div></div>`;
+  document.getElementById('messages').appendChild(div);
+  scrollBottom();
+  return div;
+}
+
+function removeTyping() {
+  document.getElementById('typing-indicator')?.remove();
+}
+
+function scrollBottom() {
+  const el = document.getElementById('messages');
+  el.scrollTop = el.scrollHeight;
+}
+
+function formatText(t) {
+  return t
+    .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
+    .replace(/\n/g, '<br>');
+}
+
+// ════════════════════════════════════════════════════════════════
+//  ENVOI MESSAGE
+// ════════════════════════════════════════════════════════════════
+async function sendMessage() {
+  const input = document.getElementById('text-input');
+  const text  = input.value.trim();
+  if (!text && !pendingPhoto) return;
+
+  // Affiche message utilisateur
+  addUserMessage(text, pendingPhoto?.preview);
+
+  // Reset input
+  input.value = '';
+  autoResize(input);
+  updateSendBtn();
+
+  const photo = pendingPhoto;
+  removePhoto();
+
+  // Ajoute au contexte
+  conversationHistory.push({ role: 'user', content: text });
+
+  addTyping();
+
+  try {
+    await processMessage(text, photo);
+  } catch(e) {
+    removeTyping();
+    console.error('CHAT ERROR:', e);
+    addBotMessage('Désolé, erreur : ' + (e.message || e));
+  }
+}
+
+function sendSuggestion(text) {
+  document.getElementById('text-input').value = text;
+  updateSendBtn();
+  sendMessage();
+}
+
+// ════════════════════════════════════════════════════════════════
+//  LOGIQUE PRINCIPALE — COMPREND L'INTENTION
+// ════════════════════════════════════════════════════════════════
+async function processMessage(text, photo) {
+  const caveSummary = wines.map(w =>
+    `ID:${w.id} | ${w.name} ${w.year||'NM'} | ${w.type} | ${w.region} | ${w.price}€ | stock:${w.quantity} | note:${w.rating} | pic:${w.peakFrom}-${w.peakTo} | accords:${(w.pairings||[]).join(',')}`
+  ).join('\n');
+
+  const systemPrompt = `Tu es le sommelier personnel d'un amateur de vin passionné. Tu gères sa cave à vin et tu le conseilles.
+
+CAVE ACTUELLE:
+${caveSummary || 'Cave vide.'}
+
+TES CAPACITÉS:
+1. PHOTO d'étiquette → traitement automatique, pas besoin d'action
+2. LISTE de vins à ajouter (tableau, liste, plusieurs vins) → réponds UNIQUEMENT avec ACTION:ADD_BULK suivi d'un JSON array sur la même ligne :
+   ACTION:ADD_BULK [{"name":"...","year":2022,"type":"Rouge","region":"...","country":"France","grape":"...","price":25,"quantity":3,"color":"#8b1c1c","img":"🍷","rating":88,"peakFrom":2025,"peakTo":2033,"pairings":["..."],"notes":"..."},...]
+3. UN SEUL vin décrit en texte → réponds avec ACTION:ANALYZE
+4. SORTIR un vin → ACTION:CHECKOUT:<id>:<quantité>
+5. CONSEIL/QUESTION → réponds directement en expert passionné, 3-5 phrases, cite les vins par nom
+
+RÈGLES STRICTES:
+- Pour une liste: ACTION:ADD_BULK + JSON complet sur UNE ligne, rien d'autre avant ou après
+- Le JSON doit être valide, tous les champs remplis intelligemment selon tes connaissances
+- type: "Rouge", "Blanc", "Rosé" ou "Pétillant"
+- color: rouge→"#8b1c1c", blanc→"#c8b840", rosé→"#e8829a", pétillant→"#c8b840"
+- img: rouge/rosé→"🍷", blanc/pétillant→"🥂"
+- peakFrom/peakTo: fenêtre de consommation selon ton expertise
+- pairings: 3 accords mets-vins typiques
+- notes: 1-2 phrases poétiques sur le vin
+- Toujours en français`;
+
+  // Photo → analyser directement
+  if (photo) {
+    removeTyping();
+    await analyzeAndAdd(photo, text);
+    return;
+  }
+
+  // Construire les messages
+  const messages = [];
+  const recentHistory = conversationHistory.slice(-6);
+  for (const h of recentHistory.slice(0, -1)) {
+    if (typeof h.content === 'string') messages.push(h);
+  }
+  messages.push({ role: 'user', content: text || 'Bonjour' });
+
+  const data = await callScript('chat', { messages, systemPrompt });
+  const reply = data.reply || '';
+
+  conversationHistory.push({ role: 'assistant', content: reply });
+
+  removeTyping();
+
+  // Traiter les actions
+  if (reply.startsWith('ACTION:ADD_BULK')) {
+    await addBulkWines(reply);
+  } else if (reply.startsWith('ACTION:ANALYZE')) {
+    const explanation = reply.replace('ACTION:ANALYZE', '').trim();
+    if (explanation) addBotMessage(explanation);
+    await analyzeAndAdd(photo, text);
+  } else if (reply.startsWith('ACTION:CHECKOUT:')) {
+    const parts = reply.split(':');
+    const id  = parts[2];
+    const qty = parseInt(parts[3]) || 1;
+    const rest = reply.split('\n').slice(1).join('\n').trim();
+    await doCheckout(id, qty, rest);
+  } else {
+    addBotMessage(reply);
+  }
+}
+
+// ════════════════════════════════════════════════════════════════
+//  ANALYSER + PROPOSER AJOUT
+// ════════════════════════════════════════════════════════════════
+async function addBulkWines(reply) {
+  try {
+    // Extraire le JSON après ACTION:ADD_BULK
+    const jsonStr = reply.replace('ACTION:ADD_BULK', '').trim();
+
+    // Trouver le tableau JSON même si du texte traîne après
+    const start = jsonStr.indexOf('[');
+    const end   = jsonStr.lastIndexOf(']');
+    if (start === -1 || end === -1) throw new Error("JSON introuvable dans la réponse");
+    const wineList = JSON.parse(jsonStr.slice(start, end + 1));
+
+    addBotMessage(`🍷 <strong>${wineList.length} vins identifiés</strong>, ajout en cours…`);
+
+    let added = 0;
+    const addedWines = [];
+    for (const wine of wineList) {
+      wine.addedAt = new Date().toISOString();
+      // Valeurs par défaut si manquantes
+      wine.img      = wine.img      || (wine.type === 'Blanc' || wine.type === 'Pétillant' ? '🥂' : '🍷');
+      wine.color    = wine.color    || (wine.type === 'Blanc' ? '#c8b840' : wine.type === 'Rosé' ? '#e8829a' : '#8b1c1c');
+      wine.pairings = wine.pairings || [];
+      wine.notes    = wine.notes    || '';
+      try {
+        const res = await callScript('add', { wine });
+        wine.id = res.id;
+        wines.push(wine);
+        addedWines.push(wine);
+        added++;
+      } catch(e) {
+        console.error('Erreur ajout', wine.name, e);
+      }
+    }
+
+    updateHeader();
+
+    const summary = addedWines.map(w =>
+      `• <strong>${w.name}</strong> ${w.year||'NM'} — ${w.quantity} btl · ${w.price}€`
+    ).join('<br>');
+    const totalVal = addedWines.reduce((s,w) => s + (w.price||0)*(w.quantity||0), 0);
+
+    addBotMessage(`✦ <strong>${added} vins ajoutés !</strong><br><br>${summary}<br><br>Valeur totale ajoutée : <strong>${totalVal.toLocaleString()}€</strong>`);
+
+  } catch(e) {
+    console.error('addBulkWines error:', e, reply);
+    // Fallback : demander via le script Apps Script
+    addBotMessage("Le JSON était trop long. J'essaie autrement…");
+    await addBulkViaScript(reply);
+  }
+}
+
+async function addBulkViaScript(rawText) {
+  try {
+    // Envoyer le texte brut au Apps Script qui appellera Claude pour parser
+    const res = await callScript('addBulkFromText', { text: rawText });
+    if (res.wines && res.wines.length) {
+      res.wines.forEach(w => wines.push(w));
+      updateHeader();
+      const summary = res.wines.map(w =>
+        `• <strong>${w.name}</strong> ${w.year||'NM'} — ${w.quantity} btl · ${w.price}€`
+      ).join('<br>');
+      addBotMessage(`✦ <strong>${res.wines.length} vins ajoutés !</strong><br><br>${summary}`);
+    } else {
+      addBotMessage("Je n'ai pas pu ajouter les vins automatiquement. Essayez d'en ajouter un par un avec une photo.");
+    }
+  } catch(e) {
+    addBotMessage("Désolé, erreur technique. Ajoutez les vins un par un avec une photo pour l'instant.");
+  }
+}
+
+async function analyzeAndAdd(photo, description) {
+  addTyping();
+  try {
+    const res = await callScript('analyze', {
+      description,
+      imageBase64: photo?.b64,
+      imageMimeType: photo?.mime,
+    });
+
+    removeTyping();
+    pendingWine = res.wine;
+
+    const w = res.wine;
+    const typeColors = {Rouge:'#c0392b',Blanc:'#d4a843',Rosé:'#e8829a',Pétillant:'#7ab8d4'};
+    const tc = typeColors[w.type] || '#888';
+
+    const div = document.createElement('div');
+    div.className = 'msg bot';
+    div.innerHTML = `
+      <div class="avatar bot">🍾</div>
+      <div class="bubble">
+        <div>J'ai identifié ce vin :</div>
+        <div class="wine-card-inline">
+          <div style="display:flex;justify-content:space-between;margin-bottom:4px">
+            <div>
+              <div class="name">${w.name}</div>
+              <div class="meta">${w.region}${w.year ? ' · '+w.year : ' · Sans millésime'} · ${w.grape}</div>
+            </div>
+            <div style="font-size:26px">${w.img||'🍷'}</div>
+          </div>
+          <div class="badges">
+            <span class="badge" style="border:1px solid ${tc}44;color:${tc};background:${tc}11">${w.type}</span>
+            <span class="badge" style="border:1px solid var(--gold)44;color:var(--gold);background:var(--gold)11">${w.price||'?'}€</span>
+            <span class="badge" style="border:1px solid #3a9b5a44;color:#3a9b5a;background:#3a9b5a11">Note ${w.rating}/100</span>
+          </div>
+          <div class="note-italic">${w.notes||''}</div>
+          <div style="margin-bottom:10px">
+            <div style="color:var(--muted);font-size:9px;letter-spacing:1px;text-transform:uppercase;margin-bottom:5px">Accords</div>
+            <div style="display:flex;flex-wrap:wrap;gap:4px">${(w.pairings||[]).map(p=>`<span style="font-size:10px;background:var(--bg2);border:1px solid var(--border);border-radius:20px;padding:2px 8px">🍽 ${p}</span>`).join('')}</div>
+          </div>
+          <div style="display:flex;align-items:center;gap:8px;margin-bottom:12px">
+            <span style="color:var(--muted);font-size:10px">Nombre de bouteilles :</span>
+            <input type="number" id="qty-confirm" value="${w.quantity||1}" min="1" max="99"
+              style="width:60px;background:var(--bg2);border:1px solid var(--border);color:var(--white);font-family:'DM Mono',monospace;font-size:12px;border-radius:6px;padding:4px 8px;outline:none;text-align:center" />
+          </div>
+          <div class="confirm-row">
+            <button class="btn-cancel" onclick="cancelAdd(this)">Annuler</button>
+            <button class="btn-confirm-add" onclick="confirmAdd(this)">✦ Ajouter à la cave</button>
+          </div>
+        </div>
+      </div>`;
+    document.getElementById('messages').appendChild(div);
+    scrollBottom();
+
+  } catch(e) {
+    removeTyping();
+    addBotMessage('Désolé, je n\'ai pas pu analyser ce vin. Pouvez-vous me donner plus de détails ?');
+  }
+}
+
+async function confirmAdd(btn) {
+  const qty = parseInt(document.getElementById('qty-confirm')?.value) || 1;
+  const wine = { ...pendingWine, quantity: qty };
+  btn.disabled = true;
+  btn.textContent = '…';
+  try {
+    const res = await callScript('add', { wine });
+    wine.id = res.id;
+    wines.push(wine);
+    // Supprimer la carte de confirmation
+    btn.closest('.msg').remove();
+    addBotMessage(`✦ **${wine.name}** ajouté à votre cave ! (${qty} bouteille${qty>1?'s':''})
+
+Votre cave compte maintenant **${wines.reduce((s,w)=>s+(w.quantity||0),0)} bouteilles**.`);
+    pendingWine = null;
+  } catch(e) {
+    btn.disabled = false;
+    btn.textContent = '✦ Ajouter à la cave';
+    addBotMessage('Erreur lors de l\'ajout. Réessayez.');
+  }
+}
+
+function cancelAdd(btn) {
+  btn.closest('.msg').remove();
+  addBotMessage('D\'accord, j\'annule l\'ajout. Autre chose ?');
+  pendingWine = null;
+}
+
+// ════════════════════════════════════════════════════════════════
+//  SORTIR UNE BOUTEILLE
+// ════════════════════════════════════════════════════════════════
+async function doCheckout(id, qty, confirmText) {
+  try {
+    const wine = wines.find(w => String(w.id) === String(id));
+    const res  = await callScript('checkout', { id, qty });
+    if (res.deleted) {
+      wines = wines.filter(w => String(w.id) !== String(id));
+    } else if (wine) {
+      wine.quantity = res.newQuantity;
+    }
+    addBotMessage(confirmText || `Bouteille sortie ! Il vous reste ${res.newQuantity ?? 0} bouteille${(res.newQuantity ?? 0) > 1 ? 's' : ''}.`);
+  } catch(e) {
+    addBotMessage('Je n\'ai pas trouvé cette bouteille dans votre cave.');
+  }
+}
+
+// ════════════════════════════════════════════════════════════════
+//  PHOTO
+// ════════════════════════════════════════════════════════════════
+function handlePhotoSelect(input) {
+  const file = input.files[0];
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = e => {
+    pendingPhoto = {
+      b64: e.target.result.split(',')[1],
+      mime: file.type,
+      preview: e.target.result,
+      name: file.name,
+    };
+    document.getElementById('photo-preview-img').src = e.target.result;
+    document.getElementById('photo-preview-name').textContent = file.name;
+    document.getElementById('photo-preview-bar').style.display = 'flex';
+    updateSendBtn();
+    // Focus sur le texte pour ajouter des infos
+    document.getElementById('text-input').focus();
+    document.getElementById('text-input').placeholder = 'Millésime, nombre de bouteilles, prix…';
+  };
+  reader.readAsDataURL(file);
+  input.value = '';
+}
+
+function removePhoto() {
+  pendingPhoto = null;
+  document.getElementById('photo-preview-bar').style.display = 'none';
+  document.getElementById('photo-preview-img').src = '';
+  document.getElementById('text-input').placeholder = 'Photo, vocal ou texte…';
+  updateSendBtn();
+}
+
+// ════════════════════════════════════════════════════════════════
+//  VOCAL (Web Speech API — transcription en temps réel)
+// ════════════════════════════════════════════════════════════════
+let recognition = null;
+
+function toggleVoice() {
+  if (isRecording) {
+    stopVoice();
+  } else {
+    startVoice();
+  }
+}
+
+function startVoice() {
+  const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+  if (!SpeechRecognition) {
+    addBotMessage('La reconnaissance vocale n\'est pas supportée sur ce navigateur. Utilisez Chrome ou Safari.');
+    return;
+  }
+
+  recognition = new SpeechRecognition();
+  recognition.lang = 'fr-FR';
+  recognition.continuous = true;
+  recognition.interimResults = true;
+
+  recognition.onstart = () => {
+    isRecording = true;
+    document.getElementById('voice-btn').classList.add('recording');
+    document.getElementById('voice-btn').textContent = '⏹';
+    document.getElementById('voice-preview').style.display = 'block';
+    document.getElementById('voice-preview').textContent = '🎙 Écoute en cours…';
+  };
+
+  recognition.onresult = e => {
+    let interim = '';
+    let final   = '';
+    for (const result of e.results) {
+      if (result.isFinal) final += result[0].transcript;
+      else interim += result[0].transcript;
+    }
+    const text = final || interim;
+    document.getElementById('voice-preview').textContent = '🎙 ' + text;
+    if (final) {
+      document.getElementById('text-input').value = final.trim();
+      autoResize(document.getElementById('text-input'));
+      updateSendBtn();
+    }
+  };
+
+  recognition.onerror = () => stopVoice();
+  recognition.onend   = () => { if (isRecording) stopVoice(); };
+
+  recognition.start();
+}
+
+function stopVoice() {
+  isRecording = false;
+  recognition?.stop();
+  document.getElementById('voice-btn').classList.remove('recording');
+  document.getElementById('voice-btn').textContent = '🎙';
+  document.getElementById('voice-preview').style.display = 'none';
+}
+
+// ════════════════════════════════════════════════════════════════
+//  UTILITAIRES
+// ════════════════════════════════════════════════════════════════
+// autoResize déplacé en haut du script
+
+function updateSendBtn() {
+  const hasText  = document.getElementById('text-input').value.trim().length > 0;
+  const hasPhoto = !!pendingPhoto;
+  document.getElementById('send-btn').disabled = !hasText && !hasPhoto;
+}
+
+// ════════════════════════════════════════════════════════════════
+//  DÉMARRAGE
+// ════════════════════════════════════════════════════════════════
+init();
+</script>
+</body>
+</html>
