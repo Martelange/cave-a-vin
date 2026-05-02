@@ -72,7 +72,7 @@
     #nav button.active { color: var(--gold); border-bottom-color: var(--gold); }
 
     /* ── Contenu scrollable ─────────────────────────────────── */
-    #content { flex: 1; overflow-y: auto; padding: 16px; padding-bottom: calc(16px + var(--safe-bot)); }
+    #content { flex: 1; overflow-y: auto; padding: 16px; padding-bottom: calc(80px + var(--safe-bot)); min-height: 0; }
 
     /* ── Filtres ────────────────────────────────────────────── */
     #filters { display: flex; gap: 8px; margin-bottom: 8px; flex-wrap: wrap; }
@@ -99,7 +99,7 @@
     .urgency-bar { height: 3px; border-radius: 2px; margin-top: 6px; }
 
     /* ── Grille vins ─────────────────────────────────────────── */
-    #wine-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(160px, 1fr)); gap: 10px; }
+    #wine-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 12px; align-content: start; }
 
     .wine-card {
       background: var(--bg2); border: 1px solid var(--border); border-radius: 8px;
@@ -320,34 +320,15 @@
     @keyframes typingDot { 0%,60%,100%{transform:translateY(0);opacity:.4} 30%{transform:translateY(-4px);opacity:1} }
 
     /* Barre input chat — fixée en bas */
-    #chat-input-bar {
-      position: fixed; bottom: 0; left: 0; right: 0;
-      background: var(--bg); border-top: 1px solid var(--border);
-      padding: 10px 12px calc(10px + var(--safe-bot));
-      display: none; gap: 8px; align-items: flex-end; z-index: 50;
-    }
-    #chat-input-bar.visible { display: flex; }
 
-    #chat-photo-btn {
-      width: 38px; height: 38px; border-radius: 8px; background: var(--bg3);
-      border: 1px solid var(--border); color: var(--muted); font-size: 16px;
-      display: flex; align-items: center; justify-content: center; cursor: pointer; flex-shrink: 0;
-    }
-    #chat-mic-btn {
-      width: 38px; height: 38px; border-radius: 8px; background: var(--bg3);
-      border: 1px solid var(--border); color: var(--muted); font-size: 16px;
-      display: flex; align-items: center; justify-content: center; cursor: pointer; flex-shrink: 0;
-      transition: background .2s, color .2s;
-    }
-    #chat-mic-btn.recording { background: #8b1c1c; color: #fff; animation: shimmer .8s ease infinite; }
 
-    #chat-text-input {
-      flex: 1; background: var(--bg3); border: 1px solid var(--border); color: var(--white);
-      font-family: 'DM Mono', monospace; font-size: 12px; border-radius: 20px;
-      padding: 9px 14px; outline: none; resize: none; min-height: 38px; max-height: 100px;
-      line-height: 1.4;
-    }
-    #chat-text-input:focus { border-color: var(--gold); }
+
+
+
+
+
+
+
 
     #chat-send-btn {
       width: 38px; height: 38px; border-radius: 50%; background: var(--gold);
@@ -355,9 +336,7 @@
       display: flex; align-items: center; justify-content: center;
     }
 
-    .chat-img-preview-wrap {
-      position: relative; margin-bottom: 6px;
-    }
+
     .chat-img-preview { height: 60px; border-radius: 8px; border: 1px solid var(--border); }
     .chat-img-remove {
       position: absolute; top: -6px; right: -6px; width: 18px; height: 18px;
@@ -428,22 +407,7 @@
   </div>
 </div>
 
-  <div style="display:flex;flex-direction:column;flex:1;gap:6px">
-    <div id="chat-img-preview-wrap" class="chat-img-preview-wrap" style="display:none">
-      <img id="chat-img-preview" class="chat-img-preview" />
-      <button class="chat-img-remove" onclick="removeChatImage()">×</button>
-    </div>
-    <div style="display:flex;gap:8px;align-items:flex-end">
-      <div id="chat-photo-btn" onclick="document.getElementById('chat-photo-input').click()" title="Envoyer une photo">📸</div>
-      <input type="file" id="chat-photo-input" accept="image/*" capture="environment" style="display:none" onchange="handleChatPhoto(this)" />
-      <div id="chat-mic-btn" onclick="toggleMic()" title="Dicter un message">🎤</div>
-      <textarea id="chat-text-input" placeholder="Ajoute un vin, pose une question…" rows="1"
-        onkeydown="if(event.key==='Enter'&&!event.shiftKey){event.preventDefault();sendChatMessage()}"
-        oninput="this.style.height='auto';this.style.height=Math.min(this.scrollHeight,100)+'px'"></textarea>
-      <button id="chat-send-btn" onclick="sendChatMessage()">↑</button>
-    </div>
-  </div>
-</div>
+
 
 <!-- Modal détail bouteille -->
 <div id="wine-modal" class="modal-overlay" style="display:none" onclick="if(event.target===this)closeModal('wine-modal')">
