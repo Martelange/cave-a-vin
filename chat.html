@@ -416,22 +416,12 @@ ${caveSummary || 'Cave vide.'}
 
 TES CAPACITÉS:
 1. PHOTO d'étiquette → traitement automatique, pas besoin d'action
-2. LISTE de vins à ajouter (tableau, liste, plusieurs vins) → réponds UNIQUEMENT avec ACTION:ADD_BULK suivi d'un JSON array sur la même ligne :
-   ACTION:ADD_BULK [{"name":"...","year":2022,"type":"Rouge","region":"...","country":"France","grape":"...","price":25,"quantity":3,"color":"#8b1c1c","img":"🍷","rating":88,"peakFrom":2025,"peakTo":2033,"pairings":["..."],"notes":"..."},...]
-3. UN SEUL vin décrit en texte → réponds avec ACTION:ANALYZE
+2. LISTE de vins (plusieurs vins mentionnés) → réponds UNIQUEMENT: ACTION:ADD_BULK puis le texte brut de la liste, rien d'autre
+3. UN SEUL vin en texte → ACTION:ANALYZE
 4. SORTIR un vin → ACTION:CHECKOUT:<id>:<quantité>
-5. CONSEIL/QUESTION → réponds directement en expert passionné, 3-5 phrases, cite les vins par nom
+5. CONSEIL/QUESTION → réponds directement, 3-5 phrases, cite les vins par nom
 
-RÈGLES STRICTES:
-- Pour une liste: ACTION:ADD_BULK + JSON complet sur UNE ligne, rien d'autre avant ou après
-- Le JSON doit être valide, tous les champs remplis intelligemment selon tes connaissances
-- type: "Rouge", "Blanc", "Rosé" ou "Pétillant"
-- color: rouge→"#8b1c1c", blanc→"#c8b840", rosé→"#e8829a", pétillant→"#c8b840"
-- img: rouge/rosé→"🍷", blanc/pétillant→"🥂"
-- peakFrom/peakTo: fenêtre de consommation selon ton expertise
-- pairings: 3 accords mets-vins typiques
-- notes: 1-2 phrases poétiques sur le vin
-- Toujours en français`;
+RÈGLES: Toujours en français. Pour une liste: ACTION:ADD_BULK + le texte original de la liste, c'est tout.`;
 
   // Photo → analyser directement
   if (photo) {
@@ -477,53 +467,10 @@ RÈGLES STRICTES:
 //  ANALYSER + PROPOSER AJOUT
 // ════════════════════════════════════════════════════════════════
 async function addBulkWines(reply) {
-  try {
-    // Extraire le JSON après ACTION:ADD_BULK
-    const jsonStr = reply.replace('ACTION:ADD_BULK', '').trim();
-
-    // Trouver le tableau JSON même si du texte traîne après
-    const start = jsonStr.indexOf('[');
-    const end   = jsonStr.lastIndexOf(']');
-    if (start === -1 || end === -1) throw new Error("JSON introuvable dans la réponse");
-    const wineList = JSON.parse(jsonStr.slice(start, end + 1));
-
-    addBotMessage(`🍷 <strong>${wineList.length} vins identifiés</strong>, ajout en cours…`);
-
-    let added = 0;
-    const addedWines = [];
-    for (const wine of wineList) {
-      wine.addedAt = new Date().toISOString();
-      // Valeurs par défaut si manquantes
-      wine.img      = wine.img      || (wine.type === 'Blanc' || wine.type === 'Pétillant' ? '🥂' : '🍷');
-      wine.color    = wine.color    || (wine.type === 'Blanc' ? '#c8b840' : wine.type === 'Rosé' ? '#e8829a' : '#8b1c1c');
-      wine.pairings = wine.pairings || [];
-      wine.notes    = wine.notes    || '';
-      try {
-        const res = await callScript('add', { wine });
-        wine.id = res.id;
-        wines.push(wine);
-        addedWines.push(wine);
-        added++;
-      } catch(e) {
-        console.error('Erreur ajout', wine.name, e);
-      }
-    }
-
-    updateHeader();
-
-    const summary = addedWines.map(w =>
-      `• <strong>${w.name}</strong> ${w.year||'NM'} — ${w.quantity} btl · ${w.price}€`
-    ).join('<br>');
-    const totalVal = addedWines.reduce((s,w) => s + (w.price||0)*(w.quantity||0), 0);
-
-    addBotMessage(`✦ <strong>${added} vins ajoutés !</strong><br><br>${summary}<br><br>Valeur totale ajoutée : <strong>${totalVal.toLocaleString()}€</strong>`);
-
-  } catch(e) {
-    console.error('addBulkWines error:', e, reply);
-    // Fallback : demander via le script Apps Script
-    addBotMessage("Le JSON était trop long. J'essaie autrement…");
-    await addBulkViaScript(reply);
-  }
+  // Envoyer le texte brut au Apps Script — c'est lui qui appelle Claude pour parser
+  const rawText = reply.replace('ACTION:ADD_BULK', '').trim();
+  addBotMessage("🍷 Analyse et ajout en cours…");
+  await addBulkViaScript(rawText);
 }
 
 async function addBulkViaScript(rawText) {

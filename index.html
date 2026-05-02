@@ -1393,7 +1393,7 @@ loadWines();
     display:flex; align-items:center; justify-content:center;
   }
   #cw-send:disabled { background:var(--bg2); color:var(--muted); }
-  #cw-photo-btn {
+  #cw-voice-btn {
     width:34px; height:34px; border-radius:50%; background:var(--bg2);
     border:1px solid var(--border); color:var(--white); font-size:14px;
     cursor:pointer; flex-shrink:0; display:flex; align-items:center; justify-content:center;
@@ -1418,9 +1418,8 @@ loadWines();
   </div>
   <div id="cw-messages"></div>
   <div id="cw-input-area">
-    <button id="cw-photo-btn" onclick="document.getElementById('cw-photo-input').click()" title="Photo">📸</button>
-    <input type="file" id="cw-photo-input" accept="image/*" capture="environment" style="display:none" onchange="cwHandlePhoto(this)" />
-    <textarea id="cw-input" rows="1" placeholder="Question ou photo d'étiquette…"
+    <button id="cw-voice-btn" onclick="cwToggleVoice()" title="Message vocal">🎙</button>
+    <textarea id="cw-input" rows="1" placeholder="Parlez ou écrivez…"
       oninput="cwResize(this);cwUpdateSend()"
       onkeydown="if(event.key==='Enter'&&!event.shiftKey){event.preventDefault();cwSend()}"></textarea>
     <button id="cw-send" onclick="cwSend()" disabled>↑</button>
@@ -1431,7 +1430,7 @@ loadWines();
 // ═══ WIDGET CHAT ══════════════════════════════════════════════
 let cwOpen = false;
 let cwHistory = [];
-let cwPendingPhoto = null;
+
 let cwInitialized = false;
 
 function toggleChatWidget() {
@@ -1456,7 +1455,7 @@ function cwResize(el) {
 
 function cwUpdateSend() {
   const val = document.getElementById('cw-input').value.trim();
-  document.getElementById('cw-send').disabled = !val && !cwPendingPhoto;
+  document.getElementById('cw-send').disabled = !val;
 }
 
 function cwScroll() {
@@ -1491,17 +1490,67 @@ function cwAddUser(text, imgSrc) {
 
 function cwRemoveTyping() { document.getElementById('cw-typing')?.remove(); }
 
-function cwHandlePhoto(input) {
-  const file = input.files[0]; if (!file) return;
-  const reader = new FileReader();
-  reader.onload = e => {
-    cwPendingPhoto = { b64: e.target.result.split(',')[1], mime: file.type, preview: e.target.result };
-    document.getElementById('cw-photo-btn').style.background = 'var(--gold)44';
-    document.getElementById('cw-photo-btn').style.borderColor = 'var(--gold)';
+;
+    
+    
     cwUpdateSend();
   };
   reader.readAsDataURL(file);
   input.value = '';
+}
+
+let cwRecognition = null;
+let cwIsRecording = false;
+
+function cwToggleVoice() {
+  if (cwIsRecording) {
+    cwStopVoice();
+  } else {
+    cwStartVoice();
+  }
+}
+
+function cwStartVoice() {
+  const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+  if (!SR) {
+    cwAddBot("La reconnaissance vocale n'est pas supportée sur ce navigateur. Utilisez Chrome ou Safari.");
+    return;
+  }
+  cwRecognition = new SR();
+  cwRecognition.lang = 'fr-FR';
+  cwRecognition.continuous = false;
+  cwRecognition.interimResults = true;
+
+  cwRecognition.onstart = () => {
+    cwIsRecording = true;
+    const btn = document.getElementById('cw-voice-btn');
+    btn.classList.add('recording');
+    btn.textContent = '⏹';
+    document.getElementById('cw-input').placeholder = '🎙 Écoute en cours…';
+  };
+
+  cwRecognition.onresult = e => {
+    let transcript = '';
+    for (const r of e.results) transcript += r[0].transcript;
+    document.getElementById('cw-input').value = transcript;
+    cwResize(document.getElementById('cw-input'));
+    cwUpdateSend();
+  };
+
+  cwRecognition.onend = () => cwStopVoice();
+  cwRecognition.onerror = () => cwStopVoice();
+  cwRecognition.start();
+}
+
+function cwStopVoice() {
+  cwIsRecording = false;
+  cwRecognition?.stop();
+  const btn = document.getElementById('cw-voice-btn');
+  if (btn) { btn.classList.remove('recording'); btn.textContent = '🎙'; }
+  document.getElementById('cw-input').placeholder = 'Parlez ou écrivez…';
+  // Auto-envoyer si texte présent
+  const val = document.getElementById('cw-input').value.trim();
+  if (val) setTimeout(() => cwSend(), 300);
 }
 
 async function cwSend() {
@@ -1512,23 +1561,21 @@ async function cwSend() {
   cwAddUser(text, cwPendingPhoto?.preview);
   input.value = ''; cwResize(input); cwUpdateSend();
 
-  const photo = cwPendingPhoto;
-  cwPendingPhoto = null;
-  document.getElementById('cw-photo-btn').style.background = '';
-  document.getElementById('cw-photo-btn').style.borderColor = '';
+  
+  
 
   cwHistory.push({ role: 'user', content: text || 'Voici une photo.' });
   cwAddBot('', true);
 
   try {
-    await cwProcess(text, photo);
+    await cwProcess(text);
   } catch(e) {
     cwRemoveTyping();
     cwAddBot('Désolé, une erreur est survenue.');
   }
 }
 
-async function cwProcess(text, photo) {
+async function cwProcess(text) {
   const caveSummary = wines.map(w =>
     `ID:${w.id}|${w.name} ${w.year||'NM'}|${w.type}|${w.region}|${w.price}€|stock:${w.quantity}|pic:${w.peakFrom}-${w.peakTo}`
   ).join('\n');
