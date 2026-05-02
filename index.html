@@ -374,7 +374,7 @@
       <h1>✦ Ma Cave</h1>
       <div class="sub" id="header-sub">Chargement…</div>
     </div>
-    <div style="display:flex;gap:8px"><a href="chat.html" style="padding:8px 14px;background:var(--bg3);border:1px solid var(--border);border-radius:6px;color:var(--gold);font-family:DM Mono,monospace;font-size:11px;text-decoration:none;display:flex;align-items:center;gap:5px">🍾 Chat</a><button id="add-btn" onclick="openAddModal()">+ Ajouter</button></div>
+
   </div>
 
   <!-- Navigation -->
@@ -382,8 +382,6 @@
     <button class="active" onclick="switchTab('cave',this)">🍷 Cave</button>
     <button onclick="switchTab('dashboard',this)">📊 Stats</button>
     <button onclick="switchTab('etageres',this)">🗄 Étagères</button>
-    <button onclick="switchTab('sommelier',this)">🤵 Sommelier</button>
-    <button onclick="switchTab('chat',this)">💬 Chat</button>
   </div>
 
   <!-- Contenu principal -->
@@ -402,7 +400,7 @@
       </div>
       <div id="filters2">
         <div class="filter-row">
-          <span class="filter-label">Prix max : <span id="price-val">500€</span></span>
+          <span class="filter-label">Prix max : <span id="price-val">–</span></span>
           <input type="range" id="price-filter" min="0" max="500" value="500" step="5" oninput="updatePriceLabel();renderCave()" />
         </div>
         <div class="filter-row">
@@ -423,34 +421,7 @@
     <!-- Étagères -->
     <div id="tab-etageres" style="display:none"></div>
 
-    <!-- Sommelier -->
-    <div id="tab-sommelier" style="display:none">
-      <div class="sommelier-box">
-        <h2>🍾 Votre sommelier</h2>
-        <p>Posez n'importe quelle question sur votre cave</p>
-        <div class="sommelier-row">
-          <input type="text" id="sommelier-input" placeholder="Quel vin pour ce soir ?" onkeydown="if(event.key==='Enter')askSommelier()" />
-          <button onclick="askSommelier()">Demander</button>
-        </div>
-        <div class="suggestions">
-          <button class="suggestion-btn" onclick="askSommelierQ('Un vin pour un dîner romantique')">Dîner romantique</button>
-          <button class="suggestion-btn" onclick="askSommelierQ('Quel vin avec un magret de canard ?')">Magret de canard</button>
-          <button class="suggestion-btn" onclick="askSommelierQ('Mon meilleur rapport qualité-prix')">Meilleur rapport Q/P</button>
-          <button class="suggestion-btn" onclick="askSommelierQ('Un vin blanc pour des huîtres')">Blanc & huîtres</button>
-        </div>
-      </div>
-      <div id="advice-container"></div>
-    </div>
     <!-- Chat IA -->
-    <div id="tab-chat" style="display:none">
-      <div id="chat-messages"></div>
-    </div>
-  </div>
-</div>
-
-<!-- Indicateur de sync -->
-<div id="sync-indicator" class="sync-indicator" style="display:none">
-  <div class="sync-dot ok" id="sync-dot"></div>
   <span id="sync-text">Synchronisé</span>
 </div>
 
@@ -547,6 +518,7 @@ async function loadWines() {
     wines = data.wines || [];
     updateHeader();
     populateRegions();
+    initPriceSlider();
     renderCave();
   } catch(e) {
     document.getElementById('wine-grid').innerHTML = `
@@ -581,6 +553,16 @@ function setSort(sort, btn) {
 function updatePriceLabel() {
   const val = document.getElementById('price-filter').value;
   document.getElementById('price-val').textContent = val >= 500 ? '500€+' : val + '€';
+}
+
+function initPriceSlider() {
+  if (!wines.length) return;
+  const maxPrice = Math.max(...wines.map(w => w.price || 0));
+  const rounded  = Math.ceil(maxPrice / 10) * 10; // arrondi à la dizaine sup
+  const slider   = document.getElementById('price-filter');
+  slider.max     = rounded;
+  slider.value   = rounded;
+  document.getElementById('price-val').textContent = rounded + '€';
 }
 
 function populateRegions() {
@@ -1654,10 +1636,26 @@ async function cwAnalyze(photo, description) {
           <span style="border:1px solid var(--gold)44;color:var(--gold);background:var(--gold)11;padding:2px 7px;border-radius:20px;font-size:9px">${w.price||'?'}€</span>
         </div>
         <div style="font-style:italic;font-family:'Cormorant Garamond',serif;font-size:13px;margin-bottom:10px">${w.notes||''}</div>
-        <div style="display:flex;align-items:center;gap:8px;margin-bottom:10px">
-          <span style="color:var(--muted);font-size:10px">Bouteilles :</span>
-          <input type="number" id="cw-qty" value="${w.quantity||1}" min="1" max="99"
-            style="width:52px;background:var(--bg2);border:1px solid var(--border);color:var(--white);font-family:'DM Mono',monospace;font-size:12px;border-radius:4px;padding:3px 6px;outline:none;text-align:center" />
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:10px">
+          <div>
+            <div style="color:var(--muted);font-size:9px;margin-bottom:3px">Quantité</div>
+            <input type="number" id="cw-qty" value="${w.quantity||1}" min="1" max="99"
+              style="width:100%;background:var(--bg2);border:1px solid var(--border);color:var(--white);font-family:'DM Mono',monospace;font-size:12px;border-radius:4px;padding:4px 8px;outline:none;text-align:center" />
+          </div>
+          <div>
+            <div style="color:var(--muted);font-size:9px;margin-bottom:3px">Format</div>
+            <select id="cw-format" style="width:100%;background:var(--bg2);border:1px solid var(--border);color:var(--white);font-family:'DM Mono',monospace;font-size:11px;border-radius:4px;padding:4px 6px;outline:none">
+              <option value="Bouteille">Bouteille (75cl)</option>
+              <option value="Magnum">Magnum (1,5L)</option>
+              <option value="Jéroboam">Jéroboam (3L)</option>
+              <option value="Réhoboam">Réhoboam (4,5L)</option>
+              <option value="Mathusalem">Mathusalem (6L)</option>
+              <option value="Salmanazar">Salmanazar (9L)</option>
+              <option value="Balthazar">Balthazar (12L)</option>
+              <option value="Nabuchodonosor">Nabuchodonosor (15L)</option>
+              <option value="Demi">Demi (37,5cl)</option>
+            </select>
+          </div>
         </div>
         <div style="display:flex;gap:6px">
           <button onclick="this.closest('.cw-msg').remove();cwAddBot("Ajout annulé.")"
@@ -1674,19 +1672,37 @@ async function cwAnalyze(photo, description) {
 }
 
 async function cwConfirmAdd(wine, btn) {
-  const qty = parseInt(document.getElementById('cw-qty')?.value)||1;
+  const qty    = parseInt(document.getElementById('cw-qty')?.value)||1;
+  const format = document.getElementById('cw-format')?.value || 'Bouteille';
   wine.quantity = qty;
+  wine.format   = format;
   btn.disabled = true; btn.textContent = '…';
   try {
-    const res = await api('add', { wine });
-    wine.id = res.id;
-    wines.push(wine);
-    updateHeader(); populateRegions(); renderCave();
-    btn.closest('.cw-msg').remove();
-    cwAddBot(`✦ <strong>${wine.name}</strong> ajouté ! (${qty} bouteille${qty>1?'s':''})`);
+    // Vérifier si la référence existe déjà (même nom + même année + même format)
+    const existing = wines.find(w =>
+      w.name.toLowerCase().trim() === wine.name.toLowerCase().trim() &&
+      String(w.year||'') === String(wine.year||'') &&
+      (w.format||'Bouteille') === (wine.format||'Bouteille')
+    );
+
+    if (existing) {
+      existing.quantity = (existing.quantity||0) + qty;
+      await api('update', { id: existing.id, wine: existing });
+      updateHeader(); renderCave();
+      btn.closest('.cw-msg').remove();
+      cwAddBot(`✦ <strong>${wine.name}</strong> déjà en cave — stock mis à jour : <strong>${existing.quantity} bouteilles</strong>`);
+    } else {
+      const res = await api('add', { wine });
+      wine.id = res.id;
+      wines.push(wine);
+      updateHeader(); populateRegions(); renderCave();
+      btn.closest('.cw-msg').remove();
+      const fmtLabel = format !== 'Bouteille' ? ' en ' + format : '';
+      cwAddBot('✦ <strong>' + wine.name + '</strong>' + fmtLabel + ' ajouté ! (' + qty + ' bouteille' + (qty>1?'s':'') + ')');
+    }
   } catch(e) {
     btn.disabled = false; btn.textContent = '✦ Ajouter';
-    cwAddBot("Erreur lors de l'ajout.");
+    cwAddBot("Erreur lors de l\'ajout.");
   }
 }
 </script>
