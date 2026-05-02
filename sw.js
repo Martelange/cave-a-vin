@@ -1,14 +1,13 @@
-// sw.js — Service Worker Cache
-const CACHE = 'cave-v1';
-const ASSETS = ['/', '/index.html'];
-
+// sw.js — Service Worker simplifié sans cache problématique
 self.addEventListener('install', e => {
-  e.waitUntil(caches.open(CACHE).then(c => c.addAll(ASSETS)));
+  self.skipWaiting();
+});
+
+self.addEventListener('activate', e => {
+  e.waitUntil(clients.claim());
 });
 
 self.addEventListener('fetch', e => {
-  if (e.request.url.includes('script.google.com')) return; // ne pas cacher les appels API
-  e.respondWith(
-    caches.match(e.request).then(r => r || fetch(e.request))
-  );
+  // Ne rien intercepter — laisser le navigateur gérer normalement
+  if (e.request.url.includes('script.google.com')) return;
 });
