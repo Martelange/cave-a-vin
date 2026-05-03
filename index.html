@@ -459,7 +459,7 @@ function renderCave() {
       + '</div>'
       + '<div style="display:flex;justify-content:space-between;margin-bottom:4px">'
       + '<span style="color:var(--gold);font-size:11px">'+(w.price||'?')+'€</span>'
-      + '<span style="color:var(--muted);font-size:10px">x '+(w.quantity||0)+' btl</span>'
+      + '<span style="color:var(--muted);font-size:10px">x '+(w.quantity||0)+' '+(w.format&&w.format!=='Bouteille'?w.format:'btl')+'</span>'
       + '</div>'
       + '<div style="color:'+urg.color+';font-size:10px;margin-bottom:3px">'+urg.label+'</div>'
       + '<div style="height:3px;border-radius:2px;background:var(--bg3)">'
@@ -493,7 +493,7 @@ function openWineModal(id) {
     + '<div style="padding:16px 20px;display:flex;flex-direction:column;gap:16px">'
     + '<div style="display:grid;grid-template-columns:repeat(4,1fr);gap:8px">'
     + '<div style="background:var(--bg3);border-radius:6px;padding:10px;text-align:center"><div style="font-family:Cormorant Garamond,serif;font-size:18px;font-weight:600;color:var(--gold)">'+(w.price||'?')+'€</div><div style="color:var(--muted);font-size:9px;text-transform:uppercase">Prix</div></div>'
-    + '<div style="background:var(--bg3);border-radius:6px;padding:10px;text-align:center"><div style="font-family:Cormorant Garamond,serif;font-size:18px;font-weight:600;color:var(--gold)">'+(w.quantity||0)+'</div><div style="color:var(--muted);font-size:9px;text-transform:uppercase">Bouteilles</div></div>'
+    + '<div style="background:var(--bg3);border-radius:6px;padding:10px;text-align:center"><div style="font-family:Cormorant Garamond,serif;font-size:18px;font-weight:600;color:var(--gold)">'+(w.quantity||0)+'</div><div style="color:var(--muted);font-size:9px;text-transform:uppercase">'+(w.format||'Bouteille')+'</div></div>'
     + '<div style="background:var(--bg3);border-radius:6px;padding:10px;text-align:center"><div style="font-family:Cormorant Garamond,serif;font-size:18px;font-weight:600;color:var(--gold)">'+((w.price||0)*(w.quantity||0)).toLocaleString()+'€</div><div style="color:var(--muted);font-size:9px;text-transform:uppercase">Valeur</div></div>'
     + '<div style="background:var(--bg3);border-radius:6px;padding:10px;text-align:center"><div style="font-family:Cormorant Garamond,serif;font-size:18px;font-weight:600;color:var(--gold)">'+(w.rating||'-')+'</div><div style="color:var(--muted);font-size:9px;text-transform:uppercase">Note</div></div>'
     + '</div>'
@@ -830,9 +830,9 @@ async function cwSend() {
 }
 
 async function cwProcess(text) {
-  var caveSummary = wines.map(function(w) {
-    return 'ID:'+w.id+'|'+w.name+' '+(w.year||'NM')+'|'+w.type+'|'+w.region+'|'+(w.price||0)+'E|stock:'+(w.quantity||0);
-  }).join('\n');
+  var caveSummary = wines.slice(0,20).map(function(w) {
+    return 'ID:'+w.id+'|'+w.name+(w.year?' '+w.year:'')+'|'+w.type+'|'+(w.region||'')+'|'+(w.price||0)+'E|x'+(w.quantity||0);
+  }).join('\n')+(wines.length>20?'\n...+'+(wines.length-20)+' autres':'');
   var systemPrompt = [
     'Tu es un sommelier expert et assistant cave a vin personnel. Tu as acces a la recherche web.',
     '',
@@ -896,38 +896,45 @@ async function cwProcess(text) {
       cwAddBot('✦ <strong>'+res.wines.length+' vin(s) ajouté(s) !</strong><br>'+s2);
     } else { cwAddBot('Erreur lors de l\'ajout.'); }
   } else if (reply.indexOf('ACTION:ANALYZE') >= 0) {
-    // Envoyer l'historique récent pour analyse
     var ctx = cwHistory.slice(-4).map(function(h){ return h.content; }).join(' ');
-    var res3 = await api('analyze', {description: ctx});
-    if (res3 && res3.wine) {
-      var w3 = res3.wine;
-      var tc3 = ({Rouge:'#c0392b',Blanc:'#d4a843',Rose:'#e8829a',Petillant:'#7ab8d4'})[w3.type]||'#888';
-      var msgDiv = document.createElement('div');
-      msgDiv.className = 'cw-msg bot';
-      var wJson = JSON.stringify(w3).replace(/"/g,'&quot;');
-      msgDiv.innerHTML = '<div class="cw-avatar bot">🍾</div><div class="cw-bubble">'
-        + '<div style="font-family:Cormorant Garamond,serif;font-size:15px;font-weight:600">'+w3.name+'</div>'
-        + '<div style="color:var(--muted);font-size:10px;margin:2px 0 8px">'+w3.region+(w3.year?' · '+w3.year:'')+(w3.grape?' · '+w3.grape:'')+'</div>'
-        + '<div style="display:flex;gap:5px;flex-wrap:wrap;margin-bottom:8px">'
-        + '<span style="border:1px solid '+tc3+'44;color:'+tc3+';background:'+tc3+'11;padding:2px 7px;border-radius:20px;font-size:9px">'+w3.type+'</span>'
-        + '<span style="border:1px solid var(--gold)44;color:var(--gold);background:var(--gold)11;padding:2px 7px;border-radius:20px;font-size:9px">'+(w3.price||'?')+'€</span>'
-        + '</div>'
-        + (w3.notes ? '<div style="font-style:italic;font-family:Cormorant Garamond,serif;font-size:13px;margin-bottom:10px">'+w3.notes+'</div>' : '')
-        + '<div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:10px">'
-        + '<div><div style="color:var(--muted);font-size:9px;margin-bottom:3px">Quantité</div>'
-        + '<input type="number" id="cw-qty3" value="'+(w3.quantity||1)+'" min="1" max="99" style="width:100%;background:var(--bg2);border:1px solid var(--border);color:var(--white);font-family:DM Mono,monospace;font-size:12px;border-radius:4px;padding:4px 8px;outline:none;text-align:center" /></div>'
-        + '<div><div style="color:var(--muted);font-size:9px;margin-bottom:3px">Format</div>'
-        + '<select id="cw-fmt3" style="width:100%;background:var(--bg2);border:1px solid var(--border);color:var(--white);font-family:DM Mono,monospace;font-size:11px;border-radius:4px;padding:4px 6px;outline:none">'
-        + '<option>Bouteille</option><option>Magnum</option><option>Jéroboam</option><option>Demi</option>'
-        + '</select></div></div>'
-        + '<div style="display:flex;gap:6px">'
-        + '<button onclick="this.closest(\'.cw-msg\').remove();cwAddBot(\'Ajout annulé.\')" style="flex:1;padding:7px;background:none;border:1px solid var(--border);border-radius:6px;color:var(--muted);font-family:DM Mono,monospace;font-size:10px;cursor:pointer">Annuler</button>'
-        + '<button onclick="cwConfirmAdd3('+wJson+',this)" style="flex:2;padding:7px;background:var(--gold);border:none;border-radius:6px;color:#0d0b09;font-family:DM Mono,monospace;font-size:10px;cursor:pointer">✦ Ajouter</button>'
-        + '</div></div>';
-      document.getElementById('cw-messages').appendChild(msgDiv);
-      cwScroll();
-    } else {
-      cwAddBot('Impossible d\'analyser ce vin. Donnez plus de détails.');
+    try {
+      var res3 = await api('analyze', {description: ctx});
+      if (res3 && res3.wine) {
+        window._cwPendingWine = res3.wine;
+        var w3 = res3.wine;
+        var tc3 = ({Rouge:'#c0392b',Blanc:'#d4a843',Rosé:'#e8829a',Pétillant:'#7ab8d4'})[w3.type]||'#888';
+        var msgDiv = document.createElement('div');
+        msgDiv.className = 'cw-msg bot';
+        msgDiv.id = 'cw-analyze-card';
+        msgDiv.innerHTML = '<div class="cw-avatar bot">🍾</div><div class="cw-bubble">'
+          + '<div style="font-family:Cormorant Garamond,serif;font-size:15px;font-weight:600">'+w3.name+'</div>'
+          + '<div style="color:var(--muted);font-size:10px;margin:2px 0 8px">'
+          + (w3.region||'')+(w3.subregion?' › '+w3.subregion:'')+(w3.terroir?' › '+w3.terroir:'')
+          + (w3.year?' · '+w3.year:'')+(w3.grape?' · '+w3.grape:'')+'</div>'
+          + '<div style="display:flex;gap:5px;flex-wrap:wrap;margin-bottom:8px">'
+          + '<span style="border:1px solid '+tc3+'44;color:'+tc3+';background:'+tc3+'11;padding:2px 7px;border-radius:20px;font-size:9px">'+w3.type+'</span>'
+          + '<span style="border:1px solid var(--gold)44;color:var(--gold);background:var(--gold)11;padding:2px 7px;border-radius:20px;font-size:9px">'+(w3.price||'?')+'€</span>'
+          + '<span style="border:1px solid #3a9b5a44;color:#3a9b5a;background:#3a9b5a11;padding:2px 7px;border-radius:20px;font-size:9px">'+(w3.rating||'?')+'/100</span>'
+          + '</div>'
+          + (w3.notes ? '<div style="font-style:italic;font-family:Cormorant Garamond,serif;font-size:13px;line-height:1.5;margin-bottom:10px;color:var(--white)">'+w3.notes+'</div>' : '')
+          + '<div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:10px">'
+          + '<div><div style="color:var(--muted);font-size:9px;margin-bottom:3px">Quantité</div>'
+          + '<input type="number" id="cw-qty3" value="'+(w3.quantity||1)+'" min="1" max="99" style="width:100%;background:var(--bg2);border:1px solid var(--border);color:var(--white);font-family:DM Mono,monospace;font-size:12px;border-radius:4px;padding:4px 8px;outline:none;text-align:center"/></div>'
+          + '<div><div style="color:var(--muted);font-size:9px;margin-bottom:3px">Format</div>'
+          + '<select id="cw-fmt3" style="width:100%;background:var(--bg2);border:1px solid var(--border);color:var(--white);font-family:DM Mono,monospace;font-size:11px;border-radius:4px;padding:4px 6px;outline:none">'
+          + '<option>Bouteille</option><option>Magnum</option><option>Jéroboam</option><option>Demi</option>'
+          + '</select></div></div>'
+          + '<div style="display:flex;gap:6px">'
+          + '<button onclick="document.getElementById(&quot;cw-analyze-card&quot;).remove()" style="flex:1;padding:7px;background:none;border:1px solid var(--border);border-radius:6px;color:var(--muted);font-family:DM Mono,monospace;font-size:10px;cursor:pointer">Annuler</button>'
+          + '<button id="cw-add3-btn" onclick="cwConfirmAdd3(this)" style="flex:2;padding:7px;background:var(--gold);border:none;border-radius:6px;color:#0d0b09;font-family:DM Mono,monospace;font-size:10px;cursor:pointer">✦ Ajouter à la cave</button>'
+          + '</div></div>';
+        document.getElementById('cw-messages').appendChild(msgDiv);
+        cwScroll();
+      } else {
+        cwAddBot("Je n'ai pas pu analyser ce vin. Pouvez-vous préciser le nom exact ?");
+      }
+    } catch(e) {
+      cwAddBot("Erreur d'analyse : " + e.message);
     }
   } else if (reply.indexOf('ACTION:CHECKOUT:') >= 0) {
     var coIdx = reply.indexOf('ACTION:CHECKOUT:');
@@ -942,35 +949,39 @@ async function cwProcess(text) {
   }
 }
 
-async function cwConfirmAdd3(wine, btn) {
+async function cwConfirmAdd3(btn) {
+  var wine = window._cwPendingWine;
+  if (!wine) { cwAddBot("Erreur: vin introuvable."); return; }
   var qty = parseInt(document.getElementById('cw-qty3')?.value)||1;
   var fmt = document.getElementById('cw-fmt3')?.value || 'Bouteille';
   wine.quantity = qty;
   wine.format = fmt;
   btn.disabled = true; btn.textContent = '…';
   try {
+    // Vérifier doublon
     var existing = wines.find(function(w) {
       return w.name.toLowerCase().trim() === wine.name.toLowerCase().trim()
-        && String(w.year||'') === String(wine.year||'')
-        && (w.format||'Bouteille') === (wine.format||'Bouteille');
+        && String(w.year||'') === String(wine.year||'');
     });
     if (existing) {
       existing.quantity = (existing.quantity||0) + qty;
       await api('update', {id: existing.id, wine: existing});
       updateHeader(); renderCave();
-      btn.closest('.cw-msg').remove();
+      document.getElementById('cw-analyze-card')?.remove();
       cwAddBot('✦ <strong>'+wine.name+'</strong> déjà en cave — stock mis à jour : <strong>'+existing.quantity+' bouteilles</strong>');
     } else {
       var res = await api('add', {wine: wine});
       wine.id = res.id;
       wines.push(wine);
       updateHeader(); populateRegions(); renderCave();
-      btn.closest('.cw-msg').remove();
-      cwAddBot('✦ <strong>'+wine.name+'</strong>'+(fmt!=='Bouteille'?' en '+fmt:'')+' ajouté ! ('+qty+' bouteille'+(qty>1?'s':'')+')');
+      document.getElementById('cw-analyze-card')?.remove();
+      var fmtLabel = fmt !== 'Bouteille' ? ' en '+fmt : '';
+      cwAddBot('✦ <strong>'+wine.name+'</strong>'+fmtLabel+' ajouté ! ('+qty+' bouteille'+(qty>1?'s':'')+')');
     }
+    window._cwPendingWine = null;
   } catch(e) {
-    btn.disabled = false; btn.textContent = '✦ Ajouter';
-    cwAddBot("Erreur lors de l\'ajout.");
+    btn.disabled = false; btn.textContent = '✦ Ajouter à la cave';
+    cwAddBot('Erreur : ' + e.message);
   }
 }
 
