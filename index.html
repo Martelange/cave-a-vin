@@ -896,8 +896,28 @@ var REGION_COORDS = {
   "Pauillac":             [45.20, -0.74],
   "Margaux":              [45.04, -0.67],
   "Piemonte":             [44.70, 7.98],
+  "Piemont":              [44.70, 7.98],
+  "Piémont":              [44.70, 7.98],
+  "Piémont - Barolo":     [44.61, 7.94],
+  "Barolo":               [44.61, 7.94],
+  "Barbaresco":           [44.70, 8.05],
+  "Asti":                 [44.90, 8.20],
   "Toscane":              [43.46, 11.10],
+  "Toscana":              [43.46, 11.10],
+  "Chianti":              [43.55, 11.20],
+  "Brunello":             [43.05, 11.49],
   "Sicile":               [37.60, 14.02],
+  "Sicilia":              [37.60, 14.02],
+  "Veneto":               [45.44, 11.00],
+  "Vénétie":              [45.44, 11.00],
+  "Amarone":              [45.50, 10.90],
+  "Soave":                [45.42, 11.25],
+  "Lombardie":            [45.46, 9.19],
+  "Sardaigne":            [40.12, 9.01],
+  "Frioul":               [46.06, 13.24],
+  "Puglia":               [41.00, 16.00],
+  "Campania":             [40.85, 14.27],
+  "Abruzzo":              [42.35, 13.40],
   "Rioja":                [42.50, -2.50],
   "Ribera del Duero":     [41.70, -3.70],
   "Castille":             [41.70, -3.70],
@@ -1015,11 +1035,30 @@ function initLeafletMap(byReg) {
     
     // Chercher les coordonnées
     var coords = null;
+    function normalize(s) {
+      return s.toLowerCase()
+        .replace(/[éèêë]/g,'e').replace(/[àâä]/g,'a').replace(/[îï]/g,'i')
+        .replace(/[ôö]/g,'o').replace(/[ùûü]/g,'u').replace(/[ç]/g,'c');
+    }
+    var regionN = normalize(region);
     Object.keys(REGION_COORDS).forEach(function(k) {
-      if (!coords && (region.toLowerCase().indexOf(k.toLowerCase()) >= 0 || k.toLowerCase().indexOf(region.toLowerCase()) >= 0)) {
+      var kN = normalize(k);
+      if (!coords && (regionN.indexOf(kN) >= 0 || kN.indexOf(regionN) >= 0)) {
         coords = REGION_COORDS[k];
       }
     });
+    // 2e passe : matching partiel sur le premier mot
+    if (!coords) {
+      var firstWord = regionN.split(/[\s\-]/)[0];
+      if (firstWord.length >= 4) {
+        Object.keys(REGION_COORDS).forEach(function(k) {
+          var kN = normalize(k);
+          if (!coords && kN.indexOf(firstWord) >= 0) {
+            coords = REGION_COORDS[k];
+          }
+        });
+      }
+    }
     if (!coords) return;
     
     // Taille du cercle proportionnelle
