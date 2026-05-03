@@ -14,6 +14,8 @@
   <meta name="apple-mobile-web-app-capable" content="yes" />
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
   <meta name="apple-mobile-web-app-title" content="Ma Cave" />
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css" />
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;0,600;1,300;1,400&family=DM+Mono:wght@300;400&display=swap" rel="stylesheet" />
   <style>
@@ -126,6 +128,16 @@
     .tasting-modal { background: var(--bg2); border: 1px solid var(--border); border-radius: 16px 16px 0 0; width: 100%; max-width: 560px; padding-bottom: var(--safe-bot); }
     .tasting-modal textarea { width: 100%; background: var(--bg3); border: 1px solid var(--border); color: var(--white); font-family: Cormorant Garamond, serif; font-size: 15px; font-style: italic; border-radius: 8px; padding: 12px; outline: none; resize: none; line-height: 1.6; }
     .tasting-modal textarea:focus { border-color: var(--gold); }
+
+    /* Leaflet overrides */
+    .leaflet-container { background: #0d0b09 !important; font-family: 'DM Mono', monospace; }
+    .leaflet-tile { filter: grayscale(1) invert(1) brightness(0.15) sepia(0.3) hue-rotate(180deg); }
+    .leaflet-control-zoom a { background: var(--bg3); color: var(--gold); border-color: var(--border); }
+    .leaflet-control-zoom a:hover { background: var(--bg2); }
+    .leaflet-popup-content-wrapper { background: var(--bg2); border: 1px solid var(--gold); border-radius: 8px; color: var(--white); box-shadow: 0 4px 20px rgba(0,0,0,.6); }
+    .leaflet-popup-tip { background: var(--bg2); }
+    .leaflet-popup-content { margin: 12px 16px; font-family: 'DM Mono', monospace; font-size: 11px; }
+    #map-container { height: 320px; border-radius: 10px; overflow: hidden; border: 1px solid var(--border); }
 
     /* Carte */
     #carte-svg { width: 100%; cursor: pointer; }
@@ -240,9 +252,15 @@
   <div class="modal" style="max-width:400px">
     <div class="modal-handle"></div>
     <div id="share-card-content" style="padding:20px"></div>
-    <div style="padding:0 20px 20px;display:flex;gap:8px">
-      <button onclick="copyShareCard()" style="flex:1;padding:10px;background:var(--bg3);border:1px solid var(--border);border-radius:6px;color:var(--white);font-family:DM Mono,monospace;font-size:11px;cursor:pointer">Copier texte</button>
-      <button onclick="closeModal('share-modal')" style="flex:1;padding:10px;background:var(--gold);border:none;border-radius:6px;color:#0d0b09;font-family:DM Mono,monospace;font-size:11px;cursor:pointer">Fermer</button>
+    <div style="padding:0 20px 20px;display:flex;flex-direction:column;gap:8px">
+      <button onclick="shareWhatsapp()" style="padding:11px;background:#25D366;border:none;border-radius:6px;color:#fff;font-family:DM Mono,monospace;font-size:11px;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:6px">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="white"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347z"/><path d="M12 0C5.373 0 0 5.373 0 12c0 2.136.565 4.138 1.547 5.87L.057 23.857 6.07 22.4A11.941 11.941 0 0012 24c6.627 0 12-5.373 12-12S18.627 0 12 0zm0 22c-1.885 0-3.65-.49-5.19-1.348l-.36-.214-3.737.98.998-3.648-.235-.374A9.969 9.969 0 012 12C2 6.486 6.486 2 12 2s10 4.486 10 10-4.486 10-10 10z"/></svg>
+        Partager sur WhatsApp
+      </button>
+      <div style="display:flex;gap:8px">
+        <button onclick="copyShareCard()" style="flex:1;padding:10px;background:var(--bg3);border:1px solid var(--border);border-radius:6px;color:var(--white);font-family:DM Mono,monospace;font-size:11px;cursor:pointer">Copier texte</button>
+        <button onclick="closeModal('share-modal')" style="flex:1;padding:10px;background:var(--gold);border:none;border-radius:6px;color:#0d0b09;font-family:DM Mono,monospace;font-size:11px;cursor:pointer">Fermer</button>
+      </div>
     </div>
   </div>
 </div>
@@ -483,7 +501,6 @@ function openWineModal(id) {
     + (w.pairings&&w.pairings.length ? '<div><div style="color:var(--muted);font-size:9px;text-transform:uppercase;margin-bottom:6px">Accords</div><div style="display:flex;flex-wrap:wrap;gap:5px">'+w.pairings.map(function(p){ return '<span style="background:var(--bg3);border:1px solid var(--border);border-radius:20px;padding:3px 10px;font-size:10px">'+p+'</span>'; }).join('')+'</div></div>' : '')
     + '<div style="display:flex;gap:8px">'
     + '<button onclick="checkoutWine('+w.id+')" style="flex:1;padding:11px;background:var(--red);border:none;border-radius:6px;color:#fff;font-family:DM Mono,monospace;font-size:11px;cursor:pointer">- Sortir</button>'
-    + '<button onclick="checkinWine('+w.id+')" style="flex:1;padding:11px;background:var(--bg3);border:1px solid var(--border);border-radius:6px;color:var(--white);font-family:DM Mono,monospace;font-size:11px;cursor:pointer">+ Entree</button>'
     + '<button onclick="checkinWine('+w.id+')" style="flex:1;padding:11px;background:var(--bg3);border:1px solid var(--border);border-radius:6px;color:var(--white);font-family:DM Mono,monospace;font-size:11px;cursor:pointer">+ Entree</button>'
     + '</div>'
     + '<button onclick="openShareModal('+w.id+')" class="share-btn" style="width:100%;margin-top:4px">Partager cette fiche</button>'
@@ -841,6 +858,56 @@ async function cwProcess(text) {
 }
 
 // ── CARTE DES REGIONS ────────────────────────────────────────────
+var REGION_COORDS = {
+  "Chablis":              [47.81, 3.80],
+  "Bourgogne":            [47.05, 4.85],
+  "Bourgogne - Chablis":  [47.81, 3.80],
+  "Bourgogne - Cote de Beaune": [46.98, 4.83],
+  "Bourgogne - Cote de Nuits":  [47.18, 4.93],
+  "Bourgogne - Cote Chalonnaise": [46.72, 4.75],
+  "Bourgogne - Hautes-Cotes de Nuits": [47.15, 4.88],
+  "Moulin-a-Vent":        [46.28, 4.67],
+  "Moulin-a-Vent":        [46.28, 4.67],
+  "Beaujolais":           [46.10, 4.65],
+  "Beaujolais - Moulin-a-Vent": [46.28, 4.67],
+  "Bordeaux":             [44.84, -0.58],
+  "Champagne":            [49.05, 4.00],
+  "Alsace":               [48.25, 7.45],
+  "Loire":                [47.40, 0.68],
+  "Cotes du Rhone":       [44.20, 4.85],
+  "Rhone":                [44.20, 4.85],
+  "Provence":             [43.50, 5.50],
+  "Languedoc":            [43.60, 3.88],
+  "Roussillon":           [42.70, 2.90],
+  "Sancerre":             [47.33, 2.83],
+  "Pouilly-Fume":         [47.29, 2.95],
+  "Muscadet":             [47.20, -1.55],
+  "Marsannay":            [47.22, 4.99],
+  "Mercurey":             [46.72, 4.75],
+  "Beaune":               [46.98, 4.84],
+  "Pommard":              [46.95, 4.79],
+  "Meursault":            [46.96, 4.76],
+  "Puligny-Montrachet":   [46.92, 4.76],
+  "Gevrey-Chambertin":    [47.23, 4.97],
+  "Nuits-Saint-Georges":  [47.13, 4.95],
+  "Pomerol":              [44.93, -0.19],
+  "Saint-Emilion":        [44.89, -0.16],
+  "Medoc":                [45.25, -0.93],
+  "Pauillac":             [45.20, -0.74],
+  "Margaux":              [45.04, -0.67],
+  "Piemonte":             [44.70, 7.98],
+  "Toscane":              [43.46, 11.10],
+  "Sicile":               [37.60, 14.02],
+  "Rioja":                [42.50, -2.50],
+  "Ribera del Duero":     [41.70, -3.70],
+  "Castille":             [41.70, -3.70],
+  "Moselle":              [49.75, 6.64],
+  "Napa Valley":          [38.29, -122.28],
+  "Mendoza":              [-32.88, -68.84],
+};
+
+var leafletMap = null;
+
 var REGIONS = {
   "Bourgogne":       {x:340,y:230,r:22},
   "Bordeaux":        {x:195,y:310,r:24},
@@ -881,141 +948,131 @@ var WORLD_REGIONS = {
 function renderCarte() {
   var el = document.getElementById('tab-carte');
   
-  // Grouper les vins par region
-  var regionMap = {};
-  wines.forEach(function(w) {
-    var reg = w.region || 'Autre';
-    // Normaliser - chercher la cle correspondante
-    var key = reg;
-    Object.keys(REGIONS).forEach(function(k) {
-      if (reg.toLowerCase().indexOf(k.toLowerCase()) >= 0 || k.toLowerCase().indexOf(reg.toLowerCase()) >= 0) key = k;
-    });
-    if (!regionMap[key]) regionMap[key] = {wines:[], color:null, country: w.country};
-    regionMap[key].wines.push(w);
-    regionMap[key].color = w.color || '#8b1c1c';
-  });
-
+  // Stats
   var totalBtl = wines.reduce(function(s,w){ return s+(w.quantity||0); },0);
+  var byCountry = {};
+  wines.forEach(function(w){ byCountry[w.country]=(byCountry[w.country]||0)+(w.quantity||0); });
   
-  // Stats rapides
   var html = '<div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:16px">'
-    + '<div class="kpi"><div class="val">'+Object.keys(regionMap).length+'</div><div class="lbl">Regions</div></div>'
+    + '<div class="kpi"><div class="val">'+[...new Set(wines.map(function(w){ return w.region; }).filter(Boolean))].length+'</div><div class="lbl">Regions</div></div>'
     + '<div class="kpi"><div class="val">'+totalBtl+'</div><div class="lbl">Bouteilles</div></div>'
-    + '</div>';
+    + '</div>'
+    + '<div id="map-container"></div>'
+    + '<div style="color:var(--muted);font-size:9px;letter-spacing:1px;text-transform:uppercase;margin:16px 0 8px">Toutes les regions</div>'
+    + '<div style="display:flex;flex-wrap:wrap;gap:6px">';
 
-  // Carte SVG France stylisee
-  html += '<div style="background:var(--bg3);border:1px solid var(--border);border-radius:10px;padding:12px;position:relative">'
-    + '<div style="color:var(--muted);font-size:9px;letter-spacing:1px;text-transform:uppercase;margin-bottom:8px">Carte de France</div>'
-    + '<svg id="carte-svg" viewBox="0 0 500 480" xmlns="http://www.w3.org/2000/svg" style="width:100%;max-height:320px">'
-    // Fond de carte France simplifie
-    + '<path d="M155,60 L220,45 L290,50 L360,65 L420,95 L440,140 L430,185 L415,210 L420,250 L410,295 L390,340 L370,385 L340,420 L300,440 L260,445 L220,435 L185,410 L160,375 L140,340 L125,295 L120,250 L125,205 L115,165 L120,125 L135,90 Z" fill="#1a1714" stroke="rgba(180,140,80,.15)" stroke-width="1.5"/>';
+  // Liste des régions cliquables
+  var byReg = {};
+  wines.forEach(function(w) {
+    var k = w.region || 'Autre';
+    if (!byReg[k]) byReg[k] = {wines:[], color:w.color, country:w.country};
+    byReg[k].wines.push(w);
+  });
+  Object.entries(byReg).sort(function(a,b){
+    return b[1].wines.reduce(function(s,w){ return s+(w.quantity||0); },0) - a[1].wines.reduce(function(s,w){ return s+(w.quantity||0); },0);
+  }).forEach(function(kv) {
+    var qty = kv[1].wines.reduce(function(s,w){ return s+(w.quantity||0); },0);
+    var color = kv[1].color || '#8b1c1c';
+    html += '<div style="background:var(--bg3);border:1px solid '+color+'44;border-radius:6px;padding:8px 12px;cursor:pointer" onclick="filterByRegion(&quot;'+kv[0]+'&quot;)">'
+      + '<div style="color:var(--white);font-size:11px">'+kv[0]+'</div>'
+      + '<div style="color:var(--gold);font-size:10px;margin-top:2px">'+qty+' btl</div>'
+      + '</div>';
+  });
+  html += '</div>';
+  
+  el.innerHTML = html;
+  
+  // Initialiser Leaflet après que le DOM soit prêt
+  setTimeout(function() { initLeafletMap(byReg); }, 100);
+}
 
-  // Placer les bulles par region
-  Object.keys(regionMap).forEach(function(reg) {
-    var pos = REGIONS[reg];
-    var data = regionMap[reg];
-    var total = data.wines.reduce(function(s,w){ return s+(w.quantity||0); },0);
-    var r = Math.max(12, Math.min(30, 10 + total * 1.5));
+function initLeafletMap(byReg) {
+  // Détruire la carte précédente si elle existe
+  if (leafletMap) { leafletMap.remove(); leafletMap = null; }
+  
+  var container = document.getElementById('map-container');
+  if (!container) return;
+  
+  leafletMap = L.map('map-container', {
+    center: [46.5, 3.0],
+    zoom: 5,
+    zoomControl: true,
+    scrollWheelZoom: false
+  });
+  
+  // Tuiles OpenStreetMap
+  L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+    attribution: '&copy; OpenStreetMap',
+    maxZoom: 12
+  }).addTo(leafletMap);
+  
+  // Placer les marqueurs par région
+  Object.entries(byReg).forEach(function(kv) {
+    var region = kv[0];
+    var data = kv[1];
+    var qty = data.wines.reduce(function(s,w){ return s+(w.quantity||0); },0);
     var color = data.color || '#8b1c1c';
     
-    if (!pos && data.country === 'France') {
-      pos = {x: 260 + Math.random()*80-40, y: 250 + Math.random()*80-40};
-    }
-    if (!pos) return; // pays etranger, skip pour France
-
-    var names = data.wines.map(function(w){ return w.name; }).join(', ');
-    html += '<circle cx="'+pos.x+'" cy="'+pos.y+'" r="'+r+'" fill="'+color+'" fill-opacity=".75" stroke="'+color+'" stroke-width="1.5" style="cursor:pointer" onclick="showRegionPopup(event,&quot;'+reg+'&quot;,'+total+')"/>'
-      + '<text x="'+pos.x+'" y="'+(pos.y+1)+'" text-anchor="middle" dominant-baseline="middle" fill="#fff" font-size="'+(r > 18 ? 8 : 7)+'" font-family="DM Mono,monospace" style="pointer-events:none">'+total+'</text>';
+    // Chercher les coordonnées
+    var coords = null;
+    Object.keys(REGION_COORDS).forEach(function(k) {
+      if (!coords && (region.toLowerCase().indexOf(k.toLowerCase()) >= 0 || k.toLowerCase().indexOf(region.toLowerCase()) >= 0)) {
+        coords = REGION_COORDS[k];
+      }
+    });
+    if (!coords) return;
+    
+    // Taille du cercle proportionnelle
+    var radius = Math.max(12000, Math.min(35000, 8000 + qty * 3000));
+    
+    // Cercle coloré
+    var circle = L.circle(coords, {
+      color: color,
+      fillColor: color,
+      fillOpacity: 0.6,
+      weight: 2,
+      radius: radius
+    }).addTo(leafletMap);
+    
+    // Popup au clic
+    var popupHtml = '<div style="min-width:160px">'
+      + '<div style="color:var(--gold);font-size:13px;font-weight:600;margin-bottom:6px">'+region+'</div>'
+      + '<div style="color:var(--muted);font-size:10px;margin-bottom:8px">'+qty+' bouteille(s) · '+data.wines.length+' ref.</div>'
+      + data.wines.slice(0,4).map(function(w) {
+          return '<div style="font-size:10px;color:var(--white);margin-bottom:3px;display:flex;align-items:center;gap:5px">'
+            + '<span>'+(w.img||'🍷')+'</span>'
+            + '<span>'+w.name+(w.year?' '+w.year:'')+'</span>'
+            + '</div>';
+        }).join('')
+      + (data.wines.length > 4 ? '<div style="color:var(--muted);font-size:9px">...et '+(data.wines.length-4)+' autre(s)</div>' : '')
+      + '<div style="margin-top:8px;padding-top:8px;border-top:1px solid rgba(180,140,80,.2)">'
+      + '<button onclick="filterByRegion(&quot;'+region+'&quot;)" style="width:100%;padding:5px;background:var(--gold);border:none;border-radius:4px;color:#0d0b09;font-family:DM Mono,monospace;font-size:9px;cursor:pointer">Voir ces vins</button>'
+      + '</div></div>';
+    
+    circle.bindPopup(popupHtml, {maxWidth: 220});
+    
+    // Label texte
+    L.marker(coords, {
+      icon: L.divIcon({
+        html: '<div style="background:none;border:none;color:#fff;font-family:DM Mono,monospace;font-size:10px;font-weight:600;text-align:center;text-shadow:0 1px 3px rgba(0,0,0,.8);white-space:nowrap">'+qty+'</div>',
+        iconSize: [30, 20],
+        iconAnchor: [15, 10],
+        className: ''
+      })
+    }).addTo(leafletMap);
   });
-
-  // Marqueurs pays etrangers
-  var foreignByCountry = {};
-  wines.forEach(function(w) {
-    if (w.country && w.country !== 'France') {
-      if (!foreignByCountry[w.country]) foreignByCountry[w.country] = {qty:0, color:'#888'};
-      foreignByCountry[w.country].qty += (w.quantity||0);
-      foreignByCountry[w.country].color = w.color || '#888';
-    }
-  });
-
-  // Petits badges pays etrangers en bas de carte
-  html += '</svg>';
-
-  // Popup container
-  html += '<div id="region-popup" class="carte-popup" style="display:none;top:0;left:0"></div>';
-  html += '</div>';
-
-  // Liste des régions par pays
-  html += '<div style="margin-top:16px">';
-  
-  // France en premier
-  var frWines = wines.filter(function(w){ return !w.country || w.country === 'France'; });
-  if (frWines.length) {
-    html += '<div style="color:var(--muted);font-size:9px;letter-spacing:1px;text-transform:uppercase;margin-bottom:8px;margin-top:12px">France</div>';
-    var frByReg = {};
-    frWines.forEach(function(w) {
-      var k = w.region || 'Autre';
-      if (!frByReg[k]) frByReg[k] = {wines:[], color:w.color};
-      frByReg[k].wines.push(w);
-    });
-    html += '<div style="display:flex;flex-wrap:wrap;gap:6px">';
-    Object.entries(frByReg).sort(function(a,b){ return b[1].wines.reduce(function(s,w){ return s+(w.quantity||0); },0) - a[1].wines.reduce(function(s,w){ return s+(w.quantity||0); },0); }).forEach(function(kv) {
-      var qty = kv[1].wines.reduce(function(s,w){ return s+(w.quantity||0); },0);
-      html += '<div style="background:var(--bg3);border:1px solid '+(kv[1].color||'#8b1c1c')+'44;border-radius:6px;padding:8px 12px;cursor:pointer" onclick="showRegionDetail(&quot;'+kv[0]+'&quot;)">'
-        + '<div style="color:var(--white);font-size:11px">'+kv[0]+'</div>'
-        + '<div style="color:var(--gold);font-size:10px;margin-top:2px">'+qty+' btl - '+kv[1].wines.length+' ref.</div>'
-        + '</div>';
-    });
-    html += '</div>';
-  }
-
-  // Autres pays
-  Object.keys(foreignByCountry).forEach(function(country) {
-    var cWines = wines.filter(function(w){ return w.country === country; });
-    var cQty = cWines.reduce(function(s,w){ return s+(w.quantity||0); },0);
-    html += '<div style="color:var(--muted);font-size:9px;letter-spacing:1px;text-transform:uppercase;margin-bottom:8px;margin-top:12px">'+country+'</div>';
-    html += '<div style="display:flex;flex-wrap:wrap;gap:6px">';
-    var cByReg = {};
-    cWines.forEach(function(w) {
-      var k = w.region || country;
-      if (!cByReg[k]) cByReg[k] = {wines:[], color:w.color};
-      cByReg[k].wines.push(w);
-    });
-    Object.entries(cByReg).forEach(function(kv) {
-      var qty = kv[1].wines.reduce(function(s,w){ return s+(w.quantity||0); },0);
-      html += '<div style="background:var(--bg3);border:1px solid '+(kv[1].color||'#888')+'44;border-radius:6px;padding:8px 12px">'
-        + '<div style="color:var(--white);font-size:11px">'+kv[0]+'</div>'
-        + '<div style="color:var(--gold);font-size:10px;margin-top:2px">'+qty+' btl</div>'
-        + '</div>';
-    });
-    html += '</div>';
-  });
-  html += '</div>';
-
-  el.innerHTML = html;
 }
 
-function showRegionPopup(event, region, qty) {
-  var popup = document.getElementById('region-popup');
-  if (!popup) return;
-  var rWines = wines.filter(function(w){ return (w.region||'').toLowerCase().indexOf(region.toLowerCase()) >= 0 || region.toLowerCase().indexOf((w.region||'').toLowerCase()) >= 0; });
-  popup.innerHTML = '<div style="font-weight:600;color:var(--gold);margin-bottom:4px">'+region+'</div>'
-    + '<div style="color:var(--muted);font-size:10px;margin-bottom:6px">'+qty+' bouteille(s) - '+rWines.length+' reference(s)</div>'
-    + rWines.slice(0,3).map(function(w){ return '<div style="color:var(--white);font-size:10px;margin-bottom:2px">'+w.name+(w.year?' '+w.year:'')+'</div>'; }).join('')
-    + (rWines.length > 3 ? '<div style="color:var(--muted);font-size:9px">...et '+(rWines.length-3)+' autre(s)</div>' : '');
-  popup.style.display = 'block';
-  var rect = event.target.closest('svg').getBoundingClientRect();
-  popup.style.left = Math.min(event.clientX - rect.left, rect.width - 210) + 'px';
-  popup.style.top = (event.clientY - rect.top - 10) + 'px';
-  setTimeout(function(){ popup.style.display = 'none'; }, 3000);
-}
-
-function showRegionDetail(region) {
-  // Filtrer et aller sur la vue cave
+function filterByRegion(region) {
   document.getElementById('region-filter').value = region;
   switchTab('cave', document.querySelector('#nav button'));
   renderCave();
 }
+
+
+
+
+
 
 // ── ALERTES DE MATURITE ───────────────────────────────────────────
 function checkMaturiteAlerts() {
@@ -1106,6 +1163,24 @@ function openShareModal(id) {
   
   // Stocker le vin pour la copie texte
   window._shareWine = w;
+}
+
+function shareWhatsapp() {
+  var w = window._shareWine;
+  if (!w) return;
+  var year = new Date().getFullYear();
+  var yl = (w.peakTo||9999) - year;
+  var statut = yl <= 0 ? 'A boire maintenant' : yl <= 2 ? 'A boire rapidement ('+w.peakTo+')' : 'Fenetre: '+w.peakFrom+'-'+w.peakTo;
+  var nl = String.fromCharCode(10);
+  var text = w.name + (w.year ? ' ' + w.year : '') + nl
+    + w.region + ' - ' + (w.type||'') + nl
+    + (w.grape ? 'Cepage: ' + w.grape + nl : '')
+    + (w.rating ? 'Note: ' + w.rating + '/100' + nl : '')
+    + statut
+    + (w.notes ? nl + nl + w.notes : '')
+    + (w.pairings && w.pairings.length ? nl + 'Accords: ' + w.pairings.slice(0,3).join(', ') : '');
+  var url = 'https://wa.me/?text=' + encodeURIComponent(text);
+  window.open(url, '_blank');
 }
 
 function copyShareCard() {
