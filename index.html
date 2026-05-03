@@ -107,6 +107,26 @@
     .spinner { width: 24px; height: 24px; border: 2px solid var(--border); border-top-color: var(--gold); border-radius: 50%; animation: spin .7s linear infinite; }
     .loading-state p { color: var(--gold); font-family: 'Cormorant Garamond', serif; font-size: 16px; }
     .empty-state { text-align: center; padding: 60px 20px; color: var(--muted); grid-column: 1/-1; }
+    /* +/- boutons sur les cartes */
+    .qty-controls { display: flex; align-items: center; gap: 6px; margin-top: 8px; }
+    .qty-btn { width: 26px; height: 26px; border-radius: 50%; border: 1px solid var(--border); background: var(--bg3); color: var(--white); font-size: 16px; cursor: pointer; display: flex; align-items: center; justify-content: center; flex-shrink: 0; transition: all .2s; line-height: 1; }
+    .qty-btn:active { background: var(--gold); color: #0d0b09; border-color: var(--gold); transform: scale(.93); }
+    .qty-count { flex: 1; text-align: center; font-size: 12px; color: var(--white); }
+
+    /* Historique */
+    .hist-card { background: var(--bg2); border: 1px solid var(--border); border-radius: 8px; padding: 14px; margin-bottom: 10px; display: flex; gap: 12px; align-items: flex-start; animation: fadeIn .3s ease both; }
+    .hist-card .accent-dot { width: 10px; height: 10px; border-radius: 50%; flex-shrink: 0; margin-top: 4px; }
+    .hist-card .hist-name { font-family: Cormorant Garamond, serif; font-size: 15px; font-weight: 600; margin-bottom: 2px; }
+    .hist-card .hist-meta { color: var(--muted); font-size: 10px; margin-bottom: 6px; }
+    .hist-card .hist-date { color: var(--gold); font-size: 10px; margin-bottom: 4px; }
+    .hist-card .hist-note { font-family: Cormorant Garamond, serif; font-size: 13px; font-style: italic; color: var(--white); line-height: 1.5; }
+    .hist-month { color: var(--muted); font-size: 9px; letter-spacing: 2px; text-transform: uppercase; margin: 16px 0 8px; padding-bottom: 4px; border-bottom: 1px solid var(--border); }
+
+    /* Modal note dégustation */
+    .tasting-modal { background: var(--bg2); border: 1px solid var(--border); border-radius: 16px 16px 0 0; width: 100%; max-width: 560px; padding-bottom: var(--safe-bot); }
+    .tasting-modal textarea { width: 100%; background: var(--bg3); border: 1px solid var(--border); color: var(--white); font-family: Cormorant Garamond, serif; font-size: 15px; font-style: italic; border-radius: 8px; padding: 12px; outline: none; resize: none; line-height: 1.6; }
+    .tasting-modal textarea:focus { border-color: var(--gold); }
+
     @keyframes fadeIn { from { opacity:0; transform: translateY(6px); } to { opacity:1; transform: none; } }
     @keyframes spin { to { transform: rotate(360deg); } }
     @keyframes shimmer { 0%,100%{opacity:.4} 50%{opacity:1} }
@@ -128,6 +148,7 @@
     <button class="active" onclick="switchTab('cave',this)">Cave</button>
     <button onclick="switchTab('dashboard',this)">Stats</button>
     <button onclick="switchTab('etageres',this)">Etageres</button>
+    <button onclick="switchTab('historique',this)">Historique</button>
   </div>
   <div id="content">
     <div id="tab-cave">
@@ -159,6 +180,7 @@
     </div>
     <div id="tab-dashboard" style="display:none"></div>
     <div id="tab-etageres" style="display:none"></div>
+    <div id="tab-historique" style="display:none"></div>
   </div>
   <div id="sync-indicator" class="sync-indicator" style="display:none">
     <div class="sync-dot ok" id="sync-dot"></div>
@@ -168,6 +190,31 @@
 
 <div id="wine-modal" class="modal-overlay" style="display:none" onclick="if(event.target===this)closeModal('wine-modal')">
   <div class="modal" id="wine-modal-content"></div>
+</div>
+
+<!-- Modal note degustation -->
+<div id="tasting-modal" class="modal-overlay" style="display:none" onclick="if(event.target===this)closeTastingModal()">
+  <div class="tasting-modal">
+    <div class="modal-handle"></div>
+    <div style="padding:16px 20px;border-bottom:1px solid var(--border)">
+      <div id="tasting-wine-name" style="font-family:Cormorant Garamond,serif;font-size:18px;font-weight:600"></div>
+      <div id="tasting-wine-meta" style="color:var(--muted);font-size:11px;margin-top:3px"></div>
+    </div>
+    <div style="padding:16px 20px;display:flex;flex-direction:column;gap:12px">
+      <div>
+        <div style="color:var(--muted);font-size:9px;letter-spacing:1px;text-transform:uppercase;margin-bottom:8px">Note de degustation (optionnel)</div>
+        <textarea id="tasting-note-input" rows="4" placeholder="Aromes, texture, accord... vos impressions sur cette bouteille"></textarea>
+      </div>
+      <div id="tasting-qty-row" style="display:flex;align-items:center;gap:10px">
+        <span style="color:var(--muted);font-size:10px">Nombre de bouteilles sorties :</span>
+        <input type="number" id="tasting-qty" value="1" min="1" max="99" style="width:60px;background:var(--bg3);border:1px solid var(--border);color:var(--white);font-family:DM Mono,monospace;font-size:12px;border-radius:6px;padding:5px 8px;outline:none;text-align:center" />
+      </div>
+      <div style="display:flex;gap:8px">
+        <button onclick="closeTastingModal()" style="flex:1;padding:11px;background:none;border:1px solid var(--border);border-radius:6px;color:var(--muted);font-family:DM Mono,monospace;font-size:11px;cursor:pointer">Annuler</button>
+        <button onclick="confirmCheckout()" style="flex:2;padding:11px;background:var(--red);border:none;border-radius:6px;color:#fff;font-family:DM Mono,monospace;font-size:11px;cursor:pointer">Sortir de la cave</button>
+      </div>
+    </div>
+  </div>
 </div>
 
 <button id="chat-fab" onclick="toggleChatWidget()">🍾</button>
@@ -256,12 +303,13 @@ function switchTab(tab, btn) {
   currentTab = tab;
   document.querySelectorAll('#nav button').forEach(function(b){ b.classList.remove('active'); });
   btn.classList.add('active');
-  ['cave','dashboard','etageres'].forEach(function(t) {
+  ['cave','dashboard','etageres','historique'].forEach(function(t) {
     var el = document.getElementById('tab-'+t);
     if (el) el.style.display = (t === tab) ? '' : 'none';
   });
   if (tab === 'dashboard') renderDashboard();
   if (tab === 'etageres') renderEtageres();
+  if (tab === 'historique') renderHistorique();
 }
 
 function setSort(sort, btn) {
@@ -363,6 +411,11 @@ function renderCave() {
       + '<div style="height:100%;width:'+urg.barPct+'%;background:'+urg.color+';border-radius:2px"></div></div>'
       + '<div class="rating-wrap"><div class="rating-track"><div class="rating-fill" style="width:'+rPct+'%"></div></div>'
       + '<span class="rating-val">'+(w.rating||'-')+'</span></div>'
+      + '<div class="qty-controls" onclick="event.stopPropagation()">'
+      + '<button class="qty-btn" onclick="quickCheckout('+w.id+')">-</button>'
+      + '<span class="qty-count">'+(w.quantity||0)+' btl</span>'
+      + '<button class="qty-btn" onclick="quickCheckin('+w.id+')" style="font-size:14px">+</button>'
+      + '</div>'
       + '</div>';
   }).join('');
 }
@@ -405,14 +458,70 @@ function openWineModal(id) {
   document.getElementById('wine-modal').style.display = 'flex';
 }
 
-async function checkoutWine(id) {
+var pendingCheckoutId = null;
+
+function checkoutWine(id) {
+  var w = wines.find(function(x){ return String(x.id)===String(id); });
+  if (!w) return;
+  pendingCheckoutId = id;
+  document.getElementById('tasting-wine-name').textContent = w.name + (w.year ? ' ' + w.year : '');
+  document.getElementById('tasting-wine-meta').textContent = w.region + ' - ' + w.type;
+  document.getElementById('tasting-note-input').value = '';
+  document.getElementById('tasting-qty').value = 1;
+  document.getElementById('tasting-qty').max = w.quantity || 1;
+  document.getElementById('tasting-modal').style.display = 'flex';
+}
+
+function closeTastingModal() {
+  document.getElementById('tasting-modal').style.display = 'none';
+  pendingCheckoutId = null;
+}
+
+async function confirmCheckout() {
+  var id = pendingCheckoutId;
+  if (!id) return;
+  var w = wines.find(function(x){ return String(x.id)===String(id); });
+  if (!w) return;
+  var note = document.getElementById('tasting-note-input').value.trim();
+  var qty = parseInt(document.getElementById('tasting-qty').value) || 1;
+  closeTastingModal();
+  closeModal('wine-modal');
+  try {
+    // Ajouter a l historique
+    await api('addHistory', {
+      wineId: w.id, wineName: w.name, year: w.year,
+      type: w.type, region: w.region, price: w.price,
+      quantity: qty, drankAt: new Date().toISOString(),
+      tastingNote: note, color: w.color, img: w.img
+    });
+    // Sortir du stock
+    var res = await api('checkout', {id: id, qty: qty});
+    if (res.deleted) { wines = wines.filter(function(x){ return String(x.id)!==String(id); }); }
+    else { w.quantity = res.newQuantity; }
+    updateHeader(); renderCave();
+  } catch(e) { alert('Erreur: '+e.message); }
+}
+
+async function quickCheckout(id) {
+  var w = wines.find(function(x){ return String(x.id)===String(id); });
+  if (!w) return;
+  // Si 1 seule bouteille, proposer une note, sinon sortir directement
+  pendingCheckoutId = id;
+  document.getElementById('tasting-wine-name').textContent = w.name + (w.year ? ' ' + w.year : '');
+  document.getElementById('tasting-wine-meta').textContent = w.region + ' - ' + w.type;
+  document.getElementById('tasting-note-input').value = '';
+  document.getElementById('tasting-qty').value = 1;
+  document.getElementById('tasting-qty').max = w.quantity || 1;
+  document.getElementById('tasting-modal').style.display = 'flex';
+}
+
+async function quickCheckin(id) {
   var w = wines.find(function(x){ return String(x.id)===String(id); });
   if (!w) return;
   try {
-    var res = await api('checkout', {id:id, qty:1});
-    if (res.deleted) { wines = wines.filter(function(x){ return String(x.id)!==String(id); }); closeModal('wine-modal'); }
-    else { w.quantity = res.newQuantity; openWineModal(id); }
-    updateHeader(); renderCave();
+    w.quantity = (w.quantity||0) + 1;
+    await api('update', {id:id, wine:w});
+    renderCave(); updateHeader();
   } catch(e) { alert('Erreur: '+e.message); }
 }
 
@@ -463,6 +572,59 @@ function renderDashboard() {
           + '</div>';
       }).join('')
     + '</div>';
+}
+
+var historyCache = [];
+
+async function renderHistorique() {
+  var el = document.getElementById('tab-historique');
+  el.innerHTML = '<div style="text-align:center;padding:40px 20px;color:var(--gold);font-family:Cormorant Garamond,serif;font-size:16px">Chargement...</div>';
+  try {
+    var data = await api('listHistory');
+    historyCache = data.history || [];
+    if (!historyCache.length) {
+      el.innerHTML = '<div class="empty-state"><div style="font-size:40px;margin-bottom:12px">🍾</div><p>Aucune bouteille sortie pour le moment</p></div>';
+      return;
+    }
+    // Grouper par mois
+    var byMonth = {};
+    historyCache.forEach(function(h) {
+      var d = new Date(h.drankAt);
+      var key = d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2,'0');
+      var label = d.toLocaleDateString('fr-FR', {month:'long', year:'numeric'});
+      if (!byMonth[key]) byMonth[key] = {label:label, items:[]};
+      byMonth[key].items.push(h);
+    });
+    var html = '';
+    // Stats globales
+    var totalBtl = historyCache.reduce(function(s,h){ return s+(h.quantity||1); }, 0);
+    var totalVal = historyCache.reduce(function(s,h){ return s+(h.price||0)*(h.quantity||1); }, 0);
+    html += '<div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:20px">'
+      + '<div class="kpi"><div class="val">'+totalBtl+'</div><div class="lbl">Bouteilles bues</div></div>'
+      + '<div class="kpi"><div class="val">'+totalVal.toLocaleString()+'E</div><div class="lbl">Valeur consommee</div></div>'
+      + '</div>';
+    Object.keys(byMonth).sort().reverse().forEach(function(key) {
+      var group = byMonth[key];
+      html += '<div class="hist-month">' + group.label + ' — ' + group.items.reduce(function(s,h){ return s+(h.quantity||1); },0) + ' bouteille(s)</div>';
+      group.items.forEach(function(h) {
+        var d = new Date(h.drankAt);
+        var dateStr = d.toLocaleDateString('fr-FR', {day:'numeric', month:'short'});
+        html += '<div class="hist-card">'
+          + '<div class="accent-dot" style="background:'+(h.color||'#8b1c1c')+'"></div>'
+          + '<div style="flex:1">'
+          + '<div class="hist-date">' + dateStr + ' · ' + (h.quantity||1) + ' btl</div>'
+          + '<div class="hist-name">' + h.wineName + (h.year ? ' ' + h.year : '') + '</div>'
+          + '<div class="hist-meta">' + (h.type||'') + (h.region ? ' · ' + h.region : '') + (h.price ? ' · ' + h.price + 'E' : '') + '</div>'
+          + (h.tastingNote ? '<div class="hist-note">' + h.tastingNote + '</div>' : '')
+          + '</div>'
+          + '<div style="font-size:20px">' + (h.img||'🍷') + '</div>'
+          + '</div>';
+      });
+    });
+    el.innerHTML = html;
+  } catch(e) {
+    el.innerHTML = '<div class="empty-state"><p>Erreur de chargement.</p></div>';
+  }
 }
 
 function renderEtageres() {
@@ -615,7 +777,7 @@ async function cwProcess(text) {
   var caveSummary = wines.map(function(w) {
     return 'ID:'+w.id+'|'+w.name+' '+(w.year||'NM')+'|'+w.type+'|'+w.region+'|'+(w.price||0)+'E|stock:'+(w.quantity||0);
   }).join('\n');
-  var systemPrompt = 'Tu es le sommelier personnel. Cave:\n'+caveSummary+'\nACTIONS:\n- Liste de vins: ACTION:ADD_BULK puis texte\n- 1 vin: ACTION:ANALYZE\n- Sortir: ACTION:CHECKOUT:<id>:<qty>\n- Conseil: reponds directement en francais';
+  var systemPrompt = 'Tu es le sommelier personnel. Cave:\n'+caveSummary+'\nACTIONS:\n- Liste de vins: ACTION:ADD_BULK puis texte\n- 1 vin a ajouter: verifie dabord si ce vin (meme nom+annee) existe dans la cave, si oui dis-le et propose d incrémenter le stock, sinon ACTION:ANALYZE\n- Sortir: ACTION:CHECKOUT:<id>:<qty>\n- Conseil: reponds directement en francais';
   var messages = cwHistory.slice(-6).filter(function(h){ return typeof h.content==='string'; });
   var data = await api('chat', {messages:messages, systemPrompt:systemPrompt});
   var reply = data.reply || '';
