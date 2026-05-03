@@ -924,7 +924,7 @@ function renderCarte() {
     if (!pos) return; // pays etranger, skip pour France
 
     var names = data.wines.map(function(w){ return w.name; }).join(', ');
-    html += '<circle cx="'+pos.x+'" cy="'+pos.y+'" r="'+r+'" fill="'+color+'" fill-opacity=".75" stroke="'+color+'" stroke-width="1.5" style="cursor:pointer" onclick="showRegionPopup(event,''+reg+'','+total+')"/>'
+    html += '<circle cx="'+pos.x+'" cy="'+pos.y+'" r="'+r+'" fill="'+color+'" fill-opacity=".75" stroke="'+color+'" stroke-width="1.5" style="cursor:pointer" onclick="showRegionPopup(event,&quot;'+reg+'&quot;,'+total+')"/>'
       + '<text x="'+pos.x+'" y="'+(pos.y+1)+'" text-anchor="middle" dominant-baseline="middle" fill="#fff" font-size="'+(r > 18 ? 8 : 7)+'" font-family="DM Mono,monospace" style="pointer-events:none">'+total+'</text>';
   });
 
@@ -961,7 +961,7 @@ function renderCarte() {
     html += '<div style="display:flex;flex-wrap:wrap;gap:6px">';
     Object.entries(frByReg).sort(function(a,b){ return b[1].wines.reduce(function(s,w){ return s+(w.quantity||0); },0) - a[1].wines.reduce(function(s,w){ return s+(w.quantity||0); },0); }).forEach(function(kv) {
       var qty = kv[1].wines.reduce(function(s,w){ return s+(w.quantity||0); },0);
-      html += '<div style="background:var(--bg3);border:1px solid '+(kv[1].color||'#8b1c1c')+'44;border-radius:6px;padding:8px 12px;cursor:pointer" onclick="showRegionDetail(''+kv[0]+'')">'
+      html += '<div style="background:var(--bg3);border:1px solid '+(kv[1].color||'#8b1c1c')+'44;border-radius:6px;padding:8px 12px;cursor:pointer" onclick="showRegionDetail(&quot;'+kv[0]+'&quot;)">'
         + '<div style="color:var(--white);font-size:11px">'+kv[0]+'</div>'
         + '<div style="color:var(--gold);font-size:10px;margin-top:2px">'+qty+' btl - '+kv[1].wines.length+' ref.</div>'
         + '</div>';
