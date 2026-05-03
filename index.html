@@ -1114,22 +1114,14 @@ function copyShareCard() {
   var year = new Date().getFullYear();
   var yl = (w.peakTo||9999) - year;
   var statut = yl <= 0 ? 'A boire maintenant' : yl <= 2 ? 'A boire rapidement ('+w.peakTo+')' : 'Fenetre: '+w.peakFrom+'-'+w.peakTo;
-  var text = w.name + (w.year ? ' ' + w.year : '') + '
-'
-    + w.region + ' - ' + (w.type||'') + '
-'
-    + (w.grape ? 'Cepage: ' + w.grape + '
-' : '')
-    + (w.rating ? 'Note: ' + w.rating + '/100
-' : '')
-    + statut + '
-'
-    + (w.notes ? '
-' + w.notes + '
-' : '')
-    + (w.pairings && w.pairings.length ? '
-Accords: ' + w.pairings.slice(0,3).join(', ') : '');
-  
+  var nl = String.fromCharCode(10);
+  var text = w.name + (w.year ? ' ' + w.year : '') + nl
+    + w.region + ' - ' + (w.type||'') + nl
+    + (w.grape ? 'Cepage: ' + w.grape + nl : '')
+    + (w.rating ? 'Note: ' + w.rating + '/100' + nl : '')
+    + statut + nl
+    + (w.notes ? nl + w.notes + nl : '')
+    + (w.pairings && w.pairings.length ? nl + 'Accords: ' + w.pairings.slice(0,3).join(', ') : '');
   if (navigator.clipboard) {
     navigator.clipboard.writeText(text).then(function() {
       var btn = event.target;
