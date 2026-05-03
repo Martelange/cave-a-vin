@@ -424,7 +424,7 @@ function renderCave() {
   var filtered = wines.filter(function(w) {
     var mQ = !q || (w.name||'').toLowerCase().indexOf(q)>=0 || (w.region||'').toLowerCase().indexOf(q)>=0;
     var mT = !type || w.type===type;
-    var mR = !region || w.region===region;
+    var mR = !region || w.region===region || w.subregion===region || w.terroir===region || w.climat===region;
     var mP = priceMax>=sliderMax || (w.price||0)<=priceMax;
     return mQ && mT && mR && mP;
   });
@@ -447,7 +447,12 @@ function renderCave() {
       + '<div style="position:absolute;top:0;left:0;right:0;height:2px;background:linear-gradient(90deg,'+color+',transparent)"></div>'
       + '<div style="font-size:24px;margin-bottom:8px">'+(w.img||'...')+'</div>'
       + '<div style="font-family:Cormorant Garamond,serif;font-size:14px;font-weight:600;line-height:1.3;margin-bottom:3px">'+w.name+'</div>'
-      + '<div style="color:var(--muted);font-size:10px;margin-bottom:8px">'+w.region+(w.year?' - '+w.year:'')+'</div>'
+      + '<div style="color:var(--muted);font-size:10px;margin-bottom:8px">'
+      + (w.region||'')
+      + (w.subregion ? ' › '+w.subregion : '')
+      + (w.terroir ? ' › '+w.terroir : '')
+      + (w.year ? ' · '+w.year : '')
+      + '</div>'
       + (w.grape ? '<div style="color:var(--muted);font-size:9px;border-top:1px solid var(--border);padding-top:6px;margin-bottom:6px">'+w.grape+'</div>' : '')
       + '<div style="display:flex;gap:4px;flex-wrap:wrap;margin-bottom:8px">'
       + '<span class="badge" style="border:1px solid '+tc+'44;color:'+tc+';background:'+tc+'11">'+w.type+'</span>'
@@ -1212,7 +1217,7 @@ function shareWhatsapp() {
   var statut = yl <= 0 ? 'A boire maintenant' : yl <= 2 ? 'A boire rapidement ('+w.peakTo+')' : 'Fenetre: '+w.peakFrom+'-'+w.peakTo;
   var nl = String.fromCharCode(10);
   var text = w.name + (w.year ? ' ' + w.year : '') + nl
-    + w.region + ' - ' + (w.type||'') + nl
+    + w.region + (w.subregion ? ' › ' + w.subregion : '') + (w.terroir ? ' › ' + w.terroir : '') + ' - ' + (w.type||'') + nl
     + (w.grape ? 'Cepage: ' + w.grape + nl : '')
     + (w.rating ? 'Note: ' + w.rating + '/100' + nl : '')
     + statut
@@ -1230,7 +1235,7 @@ function copyShareCard() {
   var statut = yl <= 0 ? 'A boire maintenant' : yl <= 2 ? 'A boire rapidement ('+w.peakTo+')' : 'Fenetre: '+w.peakFrom+'-'+w.peakTo;
   var nl = String.fromCharCode(10);
   var text = w.name + (w.year ? ' ' + w.year : '') + nl
-    + w.region + ' - ' + (w.type||'') + nl
+    + w.region + (w.subregion ? ' › ' + w.subregion : '') + (w.terroir ? ' › ' + w.terroir : '') + ' - ' + (w.type||'') + nl
     + (w.grape ? 'Cepage: ' + w.grape + nl : '')
     + (w.rating ? 'Note: ' + w.rating + '/100' + nl : '')
     + statut + nl
