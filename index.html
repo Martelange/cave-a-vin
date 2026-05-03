@@ -127,6 +127,22 @@
     .tasting-modal textarea { width: 100%; background: var(--bg3); border: 1px solid var(--border); color: var(--white); font-family: Cormorant Garamond, serif; font-size: 15px; font-style: italic; border-radius: 8px; padding: 12px; outline: none; resize: none; line-height: 1.6; }
     .tasting-modal textarea:focus { border-color: var(--gold); }
 
+    /* Carte */
+    #carte-svg { width: 100%; cursor: pointer; }
+    .region-zone { transition: opacity .2s, filter .2s; }
+    .region-zone:hover { opacity: .85; filter: brightness(1.2); }
+    .carte-legend { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 12px; }
+    .carte-legend-item { display: flex; align-items: center; gap: 6px; font-size: 10px; cursor: pointer; }
+    .carte-dot { width: 10px; height: 10px; border-radius: 50%; flex-shrink: 0; }
+    .carte-popup { position: absolute; background: var(--bg2); border: 1px solid var(--gold); border-radius: 8px; padding: 10px 14px; font-size: 11px; pointer-events: none; z-index: 50; max-width: 200px; box-shadow: 0 4px 16px rgba(0,0,0,.5); }
+
+    /* Alerte badge */
+    .alert-badge { position: absolute; top: -4px; right: -4px; width: 18px; height: 18px; border-radius: 50%; background: #e05555; color: #fff; font-size: 9px; display: flex; align-items: center; justify-content: center; font-weight: bold; }
+
+    /* Fiche partage */
+    .share-btn { padding: 6px 14px; background: none; border: 1px solid var(--border); border-radius: 20px; color: var(--muted); font-family: DM Mono, monospace; font-size: 10px; cursor: pointer; transition: all .2s; }
+    .share-btn:hover { border-color: var(--gold); color: var(--gold); }
+
     @keyframes fadeIn { from { opacity:0; transform: translateY(6px); } to { opacity:1; transform: none; } }
     @keyframes spin { to { transform: rotate(360deg); } }
     @keyframes shimmer { 0%,100%{opacity:.4} 50%{opacity:1} }
@@ -149,6 +165,7 @@
     <button onclick="switchTab('dashboard',this)">Stats</button>
     <button onclick="switchTab('etageres',this)">Etageres</button>
     <button onclick="switchTab('historique',this)">Historique</button>
+    <button onclick="switchTab('carte',this)">Carte</button>
   </div>
   <div id="content">
     <div id="tab-cave">
@@ -181,6 +198,7 @@
     <div id="tab-dashboard" style="display:none"></div>
     <div id="tab-etageres" style="display:none"></div>
     <div id="tab-historique" style="display:none"></div>
+    <div id="tab-carte" style="display:none"></div>
   </div>
   <div id="sync-indicator" class="sync-indicator" style="display:none">
     <div class="sync-dot ok" id="sync-dot"></div>
@@ -213,6 +231,18 @@
         <button onclick="closeTastingModal()" style="flex:1;padding:11px;background:none;border:1px solid var(--border);border-radius:6px;color:var(--muted);font-family:DM Mono,monospace;font-size:11px;cursor:pointer">Annuler</button>
         <button onclick="confirmCheckout()" style="flex:2;padding:11px;background:var(--red);border:none;border-radius:6px;color:#fff;font-family:DM Mono,monospace;font-size:11px;cursor:pointer">Sortir de la cave</button>
       </div>
+    </div>
+  </div>
+</div>
+
+<!-- Modal fiche partage -->
+<div id="share-modal" class="modal-overlay" style="display:none" onclick="if(event.target===this)closeModal('share-modal')">
+  <div class="modal" style="max-width:400px">
+    <div class="modal-handle"></div>
+    <div id="share-card-content" style="padding:20px"></div>
+    <div style="padding:0 20px 20px;display:flex;gap:8px">
+      <button onclick="copyShareCard()" style="flex:1;padding:10px;background:var(--bg3);border:1px solid var(--border);border-radius:6px;color:var(--white);font-family:DM Mono,monospace;font-size:11px;cursor:pointer">Copier texte</button>
+      <button onclick="closeModal('share-modal')" style="flex:1;padding:10px;background:var(--gold);border:none;border-radius:6px;color:#0d0b09;font-family:DM Mono,monospace;font-size:11px;cursor:pointer">Fermer</button>
     </div>
   </div>
 </div>
@@ -289,6 +319,7 @@ async function loadWines() {
     populateRegions();
     initPriceSlider();
     renderCave();
+    setTimeout(showAlertsBanner, 500);
   } catch(e) {
     document.getElementById('wine-grid').innerHTML = '<div class="empty-state"><p>Impossible de charger la cave. Verifiez l URL du script.</p></div>';
   }
@@ -303,13 +334,14 @@ function switchTab(tab, btn) {
   currentTab = tab;
   document.querySelectorAll('#nav button').forEach(function(b){ b.classList.remove('active'); });
   btn.classList.add('active');
-  ['cave','dashboard','etageres','historique'].forEach(function(t) {
+  ['cave','dashboard','etageres','historique','carte'].forEach(function(t) {
     var el = document.getElementById('tab-'+t);
     if (el) el.style.display = (t === tab) ? '' : 'none';
   });
   if (tab === 'dashboard') renderDashboard();
   if (tab === 'etageres') renderEtageres();
   if (tab === 'historique') renderHistorique();
+  if (tab === 'carte') renderCarte();
 }
 
 function setSort(sort, btn) {
@@ -452,8 +484,10 @@ function openWineModal(id) {
     + '<div style="display:flex;gap:8px">'
     + '<button onclick="checkoutWine('+w.id+')" style="flex:1;padding:11px;background:var(--red);border:none;border-radius:6px;color:#fff;font-family:DM Mono,monospace;font-size:11px;cursor:pointer">- Sortir</button>'
     + '<button onclick="checkinWine('+w.id+')" style="flex:1;padding:11px;background:var(--bg3);border:1px solid var(--border);border-radius:6px;color:var(--white);font-family:DM Mono,monospace;font-size:11px;cursor:pointer">+ Entree</button>'
-    + '</div></div>';
-
+    + '<button onclick="checkinWine('+w.id+')" style="flex:1;padding:11px;background:var(--bg3);border:1px solid var(--border);border-radius:6px;color:var(--white);font-family:DM Mono,monospace;font-size:11px;cursor:pointer">+ Entree</button>'
+    + '</div>'
+    + '<button onclick="openShareModal('+w.id+')" class="share-btn" style="width:100%;margin-top:4px">Partager cette fiche</button>'
+    + '</div>';
   document.getElementById('wine-modal-content').innerHTML = content;
   document.getElementById('wine-modal').style.display = 'flex';
 }
@@ -806,7 +840,306 @@ async function cwProcess(text) {
   }
 }
 
-// Demarrage
+// ── CARTE DES REGIONS ────────────────────────────────────────────
+var REGIONS = {
+  "Bourgogne":       {x:340,y:230,r:22},
+  "Bordeaux":        {x:195,y:310,r:24},
+  "Champagne":       {x:340,y:140,r:18},
+  "Alsace":          {x:415,y:175,r:14},
+  "Loire":           {x:230,y:230,r:20},
+  "Cotes du Rhone":  {x:360,y:330,r:18},
+  "Rhone":           {x:360,y:330,r:18},
+  "Moulin-a-Vent":   {x:350,y:275,r:12},
+  "Beaujolais":      {x:350,y:275,r:14},
+  "Provence":        {x:380,y:390,r:16},
+  "Languedoc":       {x:300,y:390,r:16},
+  "Picardie":        {x:310,y:100,r:12},
+  "Chablis":         {x:325,y:205,r:10},
+  "Mercurey":        {x:345,y:248,r:8},
+  "Marsannay":       {x:345,y:238,r:8},
+  "Beaune":          {x:345,y:250,r:8},
+  "Pomerol":         {x:200,y:305,r:10},
+  "Saint-Emilion":   {x:210,y:310,r:10},
+  "Medoc":           {x:185,y:295,r:10},
+  "Sancerre":        {x:290,y:220,r:10},
+  "Muscadet":        {x:170,y:220,r:10},
+};
+
+var WORLD_REGIONS = {
+  "Piemonte":   {x:90,y:155,label:"Italie"},
+  "Toscane":    {x:100,y:175,label:"Italie"},
+  "Sicile":     {x:110,y:205,label:"Italie"},
+  "Rioja":      {x:50,y:140,label:"Espagne"},
+  "Ribera del Duero":{x:45,y:150,label:"Espagne"},
+  "Priorat":    {x:55,y:160,label:"Espagne"},
+  "Moselle":    {x:175,y:110,label:"Allemagne"},
+  "Rheingau":   {x:170,y:115,label:"Allemagne"},
+  "Napa Valley":{x:-250,y:150,label:"USA"},
+  "Mendoza":    {x:-180,y:280,label:"Argentine"},
+};
+
+function renderCarte() {
+  var el = document.getElementById('tab-carte');
+  
+  // Grouper les vins par region
+  var regionMap = {};
+  wines.forEach(function(w) {
+    var reg = w.region || 'Autre';
+    // Normaliser - chercher la cle correspondante
+    var key = reg;
+    Object.keys(REGIONS).forEach(function(k) {
+      if (reg.toLowerCase().indexOf(k.toLowerCase()) >= 0 || k.toLowerCase().indexOf(reg.toLowerCase()) >= 0) key = k;
+    });
+    if (!regionMap[key]) regionMap[key] = {wines:[], color:null, country: w.country};
+    regionMap[key].wines.push(w);
+    regionMap[key].color = w.color || '#8b1c1c';
+  });
+
+  var totalBtl = wines.reduce(function(s,w){ return s+(w.quantity||0); },0);
+  
+  // Stats rapides
+  var html = '<div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:16px">'
+    + '<div class="kpi"><div class="val">'+Object.keys(regionMap).length+'</div><div class="lbl">Regions</div></div>'
+    + '<div class="kpi"><div class="val">'+totalBtl+'</div><div class="lbl">Bouteilles</div></div>'
+    + '</div>';
+
+  // Carte SVG France stylisee
+  html += '<div style="background:var(--bg3);border:1px solid var(--border);border-radius:10px;padding:12px;position:relative">'
+    + '<div style="color:var(--muted);font-size:9px;letter-spacing:1px;text-transform:uppercase;margin-bottom:8px">Carte de France</div>'
+    + '<svg id="carte-svg" viewBox="0 0 500 480" xmlns="http://www.w3.org/2000/svg" style="width:100%;max-height:320px">'
+    // Fond de carte France simplifie
+    + '<path d="M155,60 L220,45 L290,50 L360,65 L420,95 L440,140 L430,185 L415,210 L420,250 L410,295 L390,340 L370,385 L340,420 L300,440 L260,445 L220,435 L185,410 L160,375 L140,340 L125,295 L120,250 L125,205 L115,165 L120,125 L135,90 Z" fill="#1a1714" stroke="rgba(180,140,80,.15)" stroke-width="1.5"/>';
+
+  // Placer les bulles par region
+  Object.keys(regionMap).forEach(function(reg) {
+    var pos = REGIONS[reg];
+    var data = regionMap[reg];
+    var total = data.wines.reduce(function(s,w){ return s+(w.quantity||0); },0);
+    var r = Math.max(12, Math.min(30, 10 + total * 1.5));
+    var color = data.color || '#8b1c1c';
+    
+    if (!pos && data.country === 'France') {
+      pos = {x: 260 + Math.random()*80-40, y: 250 + Math.random()*80-40};
+    }
+    if (!pos) return; // pays etranger, skip pour France
+
+    var names = data.wines.map(function(w){ return w.name; }).join(', ');
+    html += '<circle cx="'+pos.x+'" cy="'+pos.y+'" r="'+r+'" fill="'+color+'" fill-opacity=".75" stroke="'+color+'" stroke-width="1.5" style="cursor:pointer" onclick="showRegionPopup(event,''+reg+'','+total+')"/>'
+      + '<text x="'+pos.x+'" y="'+(pos.y+1)+'" text-anchor="middle" dominant-baseline="middle" fill="#fff" font-size="'+(r > 18 ? 8 : 7)+'" font-family="DM Mono,monospace" style="pointer-events:none">'+total+'</text>';
+  });
+
+  // Marqueurs pays etrangers
+  var foreignByCountry = {};
+  wines.forEach(function(w) {
+    if (w.country && w.country !== 'France') {
+      if (!foreignByCountry[w.country]) foreignByCountry[w.country] = {qty:0, color:'#888'};
+      foreignByCountry[w.country].qty += (w.quantity||0);
+      foreignByCountry[w.country].color = w.color || '#888';
+    }
+  });
+
+  // Petits badges pays etrangers en bas de carte
+  html += '</svg>';
+
+  // Popup container
+  html += '<div id="region-popup" class="carte-popup" style="display:none;top:0;left:0"></div>';
+  html += '</div>';
+
+  // Liste des régions par pays
+  html += '<div style="margin-top:16px">';
+  
+  // France en premier
+  var frWines = wines.filter(function(w){ return !w.country || w.country === 'France'; });
+  if (frWines.length) {
+    html += '<div style="color:var(--muted);font-size:9px;letter-spacing:1px;text-transform:uppercase;margin-bottom:8px;margin-top:12px">France</div>';
+    var frByReg = {};
+    frWines.forEach(function(w) {
+      var k = w.region || 'Autre';
+      if (!frByReg[k]) frByReg[k] = {wines:[], color:w.color};
+      frByReg[k].wines.push(w);
+    });
+    html += '<div style="display:flex;flex-wrap:wrap;gap:6px">';
+    Object.entries(frByReg).sort(function(a,b){ return b[1].wines.reduce(function(s,w){ return s+(w.quantity||0); },0) - a[1].wines.reduce(function(s,w){ return s+(w.quantity||0); },0); }).forEach(function(kv) {
+      var qty = kv[1].wines.reduce(function(s,w){ return s+(w.quantity||0); },0);
+      html += '<div style="background:var(--bg3);border:1px solid '+(kv[1].color||'#8b1c1c')+'44;border-radius:6px;padding:8px 12px;cursor:pointer" onclick="showRegionDetail(''+kv[0]+'')">'
+        + '<div style="color:var(--white);font-size:11px">'+kv[0]+'</div>'
+        + '<div style="color:var(--gold);font-size:10px;margin-top:2px">'+qty+' btl - '+kv[1].wines.length+' ref.</div>'
+        + '</div>';
+    });
+    html += '</div>';
+  }
+
+  // Autres pays
+  Object.keys(foreignByCountry).forEach(function(country) {
+    var cWines = wines.filter(function(w){ return w.country === country; });
+    var cQty = cWines.reduce(function(s,w){ return s+(w.quantity||0); },0);
+    html += '<div style="color:var(--muted);font-size:9px;letter-spacing:1px;text-transform:uppercase;margin-bottom:8px;margin-top:12px">'+country+'</div>';
+    html += '<div style="display:flex;flex-wrap:wrap;gap:6px">';
+    var cByReg = {};
+    cWines.forEach(function(w) {
+      var k = w.region || country;
+      if (!cByReg[k]) cByReg[k] = {wines:[], color:w.color};
+      cByReg[k].wines.push(w);
+    });
+    Object.entries(cByReg).forEach(function(kv) {
+      var qty = kv[1].wines.reduce(function(s,w){ return s+(w.quantity||0); },0);
+      html += '<div style="background:var(--bg3);border:1px solid '+(kv[1].color||'#888')+'44;border-radius:6px;padding:8px 12px">'
+        + '<div style="color:var(--white);font-size:11px">'+kv[0]+'</div>'
+        + '<div style="color:var(--gold);font-size:10px;margin-top:2px">'+qty+' btl</div>'
+        + '</div>';
+    });
+    html += '</div>';
+  });
+  html += '</div>';
+
+  el.innerHTML = html;
+}
+
+function showRegionPopup(event, region, qty) {
+  var popup = document.getElementById('region-popup');
+  if (!popup) return;
+  var rWines = wines.filter(function(w){ return (w.region||'').toLowerCase().indexOf(region.toLowerCase()) >= 0 || region.toLowerCase().indexOf((w.region||'').toLowerCase()) >= 0; });
+  popup.innerHTML = '<div style="font-weight:600;color:var(--gold);margin-bottom:4px">'+region+'</div>'
+    + '<div style="color:var(--muted);font-size:10px;margin-bottom:6px">'+qty+' bouteille(s) - '+rWines.length+' reference(s)</div>'
+    + rWines.slice(0,3).map(function(w){ return '<div style="color:var(--white);font-size:10px;margin-bottom:2px">'+w.name+(w.year?' '+w.year:'')+'</div>'; }).join('')
+    + (rWines.length > 3 ? '<div style="color:var(--muted);font-size:9px">...et '+(rWines.length-3)+' autre(s)</div>' : '');
+  popup.style.display = 'block';
+  var rect = event.target.closest('svg').getBoundingClientRect();
+  popup.style.left = Math.min(event.clientX - rect.left, rect.width - 210) + 'px';
+  popup.style.top = (event.clientY - rect.top - 10) + 'px';
+  setTimeout(function(){ popup.style.display = 'none'; }, 3000);
+}
+
+function showRegionDetail(region) {
+  // Filtrer et aller sur la vue cave
+  document.getElementById('region-filter').value = region;
+  switchTab('cave', document.querySelector('#nav button'));
+  renderCave();
+}
+
+// ── ALERTES DE MATURITE ───────────────────────────────────────────
+function checkMaturiteAlerts() {
+  var year = new Date().getFullYear();
+  var urgent = [];
+  var entering = [];
+  
+  wines.forEach(function(w) {
+    if (!w.peakTo || !w.peakFrom) return;
+    var yl = w.peakTo - year;
+    // Entre dans sa fenetre cette annee
+    if (w.peakFrom === year) entering.push(w);
+    // Approche de la fin (2 ans ou moins)
+    else if (yl >= 0 && yl <= 2) urgent.push(w);
+  });
+  
+  var alerts = [];
+  entering.forEach(function(w) {
+    alerts.push({type:'entering', wine:w, msg:w.name+(w.year?' '+w.year:'')+' entre dans sa fenetre de consommation!'});
+  });
+  urgent.forEach(function(w) {
+    var yl = w.peakTo - year;
+    var msg = yl === 0 ? 'Derniere annee pour '+w.name+(w.year?' '+w.year:'')+'!'
+                       : w.name+(w.year?' '+w.year:'')+' - plus que '+yl+' an'+(yl>1?'s':'')+' au pic!';
+    alerts.push({type:'urgent', wine:w, msg:msg});
+  });
+  
+  return alerts;
+}
+
+function showAlertsBanner() {
+  var alerts = checkMaturiteAlerts();
+  if (!alerts.length) return;
+  
+  var existing = document.getElementById('alerts-banner');
+  if (existing) existing.remove();
+  
+  var banner = document.createElement('div');
+  banner.id = 'alerts-banner';
+  banner.style.cssText = 'background:rgba(139,28,28,.2);border:1px solid rgba(192,57,43,.4);border-radius:8px;padding:10px 14px;margin-bottom:12px;cursor:pointer';
+  
+  var first = alerts[0];
+  var color = first.type === 'entering' ? '#3a9b5a' : '#e0a030';
+  banner.innerHTML = '<div style="display:flex;align-items:center;gap:8px;justify-content:space-between">'
+    + '<div style="display:flex;align-items:center;gap:8px">'
+    + '<span style="font-size:16px">'+(first.type==='entering'?'':'')+'</span>'
+    + '<div><div style="color:'+color+';font-size:11px;font-weight:600">'+first.msg+'</div>'
+    + (alerts.length > 1 ? '<div style="color:var(--muted);font-size:10px">+'+(alerts.length-1)+' autre(s) alerte(s)</div>' : '')
+    + '</div></div>'
+    + '<button onclick="document.getElementById('alerts-banner').remove()" style="background:none;border:none;color:var(--muted);font-size:16px;cursor:pointer;padding:0 4px">x</button>'
+    + '</div>';
+  
+  var grid = document.getElementById('wine-grid');
+  if (grid) grid.parentNode.insertBefore(banner, grid);
+}
+
+// ── FICHE PARTAGE ─────────────────────────────────────────────────
+function openShareModal(id) {
+  var w = wines.find(function(x){ return String(x.id)===String(id); });
+  if (!w) return;
+  closeModal('wine-modal');
+  
+  var year = new Date().getFullYear();
+  var yl = (w.peakTo||9999) - year;
+  var statut = yl < 0 ? 'Passe son pic' : yl === 0 ? 'Derniere annee!' : yl <= 2 ? 'A boire rapidement' : yl <= 5 ? 'Dans sa fenetre' : 'A attendre';
+  var pairStr = (w.pairings||[]).slice(0,3).join(' - ');
+  
+  var card = '<div style="background:linear-gradient(145deg,#141210,#1c1916);border-radius:12px;padding:24px;border:1px solid rgba(201,168,76,.3)">'
+    + '<div style="display:flex;align-items:center;gap:12px;margin-bottom:16px">'
+    + '<div style="font-size:36px">'+(w.img||'...')+'</div>'
+    + '<div style="flex:1">'
+    + '<div style="font-family:Cormorant Garamond,serif;font-size:20px;font-weight:600;color:#f0ebe2">'+w.name+'</div>'
+    + '<div style="color:#7a6f5e;font-size:11px;margin-top:2px">'+w.region+(w.year?' - '+w.year:'')+'</div>'
+    + '</div>'
+    + '<div style="text-align:right"><div style="color:#c9a84c;font-family:Cormorant Garamond,serif;font-size:22px;font-weight:600">'+(w.rating||'?')+'</div><div style="color:#7a6f5e;font-size:9px">/100</div></div>'
+    + '</div>'
+    + '<div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:14px">'
+    + '<div style="background:rgba(255,255,255,.04);border-radius:6px;padding:8px 10px"><div style="color:#7a6f5e;font-size:9px;text-transform:uppercase;letter-spacing:1px">Cepage</div><div style="color:#f0ebe2;font-size:11px;margin-top:2px">'+(w.grape||'?')+'</div></div>'
+    + '<div style="background:rgba(255,255,255,.04);border-radius:6px;padding:8px 10px"><div style="color:#7a6f5e;font-size:9px;text-transform:uppercase;letter-spacing:1px">Statut</div><div style="color:#c9a84c;font-size:11px;margin-top:2px">'+statut+'</div></div>'
+    + '</div>'
+    + (w.notes ? '<div style="font-family:Cormorant Garamond,serif;font-size:14px;font-style:italic;color:#f0ebe2;line-height:1.6;margin-bottom:12px;padding:10px;background:rgba(255,255,255,.03);border-radius:6px;border-left:2px solid #c9a84c">'+w.notes+'</div>' : '')
+    + (pairStr ? '<div style="color:#7a6f5e;font-size:10px">Accords: <span style="color:#f0ebe2">'+pairStr+'</span></div>' : '')
+    + '<div style="margin-top:14px;padding-top:12px;border-top:1px solid rgba(180,140,80,.15);color:#7a6f5e;font-size:9px;text-align:center;letter-spacing:1px">Ma Cave a Vin</div>'
+    + '</div>';
+  
+  document.getElementById('share-card-content').innerHTML = card;
+  document.getElementById('share-modal').style.display = 'flex';
+  
+  // Stocker le vin pour la copie texte
+  window._shareWine = w;
+}
+
+function copyShareCard() {
+  var w = window._shareWine;
+  if (!w) return;
+  var year = new Date().getFullYear();
+  var yl = (w.peakTo||9999) - year;
+  var statut = yl <= 0 ? 'A boire maintenant' : yl <= 2 ? 'A boire rapidement ('+w.peakTo+')' : 'Fenetre: '+w.peakFrom+'-'+w.peakTo;
+  var text = w.name + (w.year ? ' ' + w.year : '') + '
+'
+    + w.region + ' - ' + (w.type||'') + '
+'
+    + (w.grape ? 'Cepage: ' + w.grape + '
+' : '')
+    + (w.rating ? 'Note: ' + w.rating + '/100
+' : '')
+    + statut + '
+'
+    + (w.notes ? '
+' + w.notes + '
+' : '')
+    + (w.pairings && w.pairings.length ? '
+Accords: ' + w.pairings.slice(0,3).join(', ') : '');
+  
+  if (navigator.clipboard) {
+    navigator.clipboard.writeText(text).then(function() {
+      var btn = event.target;
+      btn.textContent = 'Copie!';
+      setTimeout(function(){ btn.textContent = 'Copier texte'; }, 2000);
+    });
+  }
+}
+
+// ── DEMARRAGE
 if ('serviceWorker' in navigator) {
   navigator.serviceWorker.getRegistrations().then(function(regs){ regs.forEach(function(r){ r.unregister(); }); });
 }
