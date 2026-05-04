@@ -482,33 +482,95 @@ function openWineModal(id) {
   var yl = (w.peakTo||9999) - year;
   var urgColor = yl<0?'#888':yl<=2?'#e05555':yl<=5?'#e0a030':'#3a9b5a';
 
+  // ── Géographie ───────────────────────────────────────────────
+  var geoLine = [w.region, w.subregion, w.terroir, w.climat].filter(Boolean).join(' › ');
+  var typeColor = ({Rouge:'#c0392b',Blanc:'#d4a843',Rose:'#e8829a',Petillant:'#7ab8d4'})[w.type]||'#888';
+  var peakLine = yl<0?'Passé son pic':yl===0?'Dernière année !':yl<=2?'À boire avant '+w.peakTo:yl<=5?'Dans sa fenêtre jusqu\'en '+w.peakTo:year>=(w.peakFrom||0)?'À point · jusqu\'en '+w.peakTo:'Attendre jusqu\'en '+w.peakFrom;
+
   var content = '<div class="modal-handle"></div>'
-    + '<div style="padding:16px 20px;border-bottom:1px solid var(--border);position:relative">'
+
+  // ── Header ────────────────────────────────────────────────
+    + '<div style="padding:20px 20px 16px;border-bottom:1px solid var(--border);position:relative">'
     + '<div style="position:absolute;top:0;left:0;right:0;height:3px;border-radius:16px 16px 0 0;background:linear-gradient(90deg,'+(w.color||'#8b1c1c')+',transparent)"></div>'
-    + '<div style="font-size:32px;margin-bottom:8px">'+(w.img||'...')+'</div>'
-    + '<div style="font-family:Cormorant Garamond,serif;font-size:20px;font-weight:600;padding-right:32px">'+w.name+'</div>'
-    + '<div style="color:var(--muted);font-size:11px;margin:4px 0 10px">'+w.region+(w.year?' - '+w.year:' - Sans millesime')+(w.grape?' - '+w.grape:'')+'</div>'
-    + '<button class="modal-close" onclick="closeModal(\'wine-modal\')">x</button>'
+    + '<div style="display:flex;align-items:flex-start;gap:12px;margin-bottom:12px">'
+    + '<div style="font-size:36px;line-height:1;flex-shrink:0">'+(w.img||'🍷')+'</div>'
+    + '<div style="flex:1;padding-right:28px">'
+    + '<div style="font-family:Cormorant Garamond,serif;font-size:21px;font-weight:600;line-height:1.2;margin-bottom:4px">'+w.name+'</div>'
+    + (w.appellation ? '<div style="color:var(--gold);font-size:10px;letter-spacing:1px;text-transform:uppercase;margin-bottom:4px">'+w.appellation+'</div>' : '')
+    + '<div style="color:var(--muted);font-size:11px">'+geoLine+(w.year?' · <span style="color:var(--white)">'+w.year+'</span>':' · Sans millésime')+'</div>'
+    + '</div></div>'
+    // Badges
+    + '<div style="display:flex;gap:6px;flex-wrap:wrap">'
+    + '<span style="border:1px solid '+typeColor+'44;color:'+typeColor+';background:'+typeColor+'11;padding:3px 9px;border-radius:20px;font-size:9px;letter-spacing:.8px;text-transform:uppercase">'+w.type+'</span>'
+    + '<span style="border:1px solid '+urgColor+'44;color:'+urgColor+';background:'+urgColor+'11;padding:3px 9px;border-radius:20px;font-size:9px;letter-spacing:.8px;text-transform:uppercase">'+peakLine+'</span>'
+    + (w.format&&w.format!=='Bouteille'?'<span style="border:1px solid var(--border);color:var(--muted);background:var(--bg3);padding:3px 9px;border-radius:20px;font-size:9px">'+w.format+'</span>':'')
     + '</div>'
-    + '<div style="padding:16px 20px;display:flex;flex-direction:column;gap:16px">'
+    + '<button class="modal-close" onclick="closeModal(\'wine-modal\')">×</button>'
+    + '</div>'
+
+  // ── Corps ─────────────────────────────────────────────────
+    + '<div style="padding:16px 20px;display:flex;flex-direction:column;gap:14px">'
+
+    // KPIs
     + '<div style="display:grid;grid-template-columns:repeat(4,1fr);gap:8px">'
-    + '<div style="background:var(--bg3);border-radius:6px;padding:10px;text-align:center"><div style="font-family:Cormorant Garamond,serif;font-size:18px;font-weight:600;color:var(--gold)">'+(w.price||'?')+'€</div><div style="color:var(--muted);font-size:9px;text-transform:uppercase">Prix</div></div>'
-    + '<div style="background:var(--bg3);border-radius:6px;padding:10px;text-align:center"><div style="font-family:Cormorant Garamond,serif;font-size:18px;font-weight:600;color:var(--gold)">'+(w.quantity||0)+'</div><div style="color:var(--muted);font-size:9px;text-transform:uppercase">'+(w.format||'Bouteille')+'</div></div>'
-    + '<div style="background:var(--bg3);border-radius:6px;padding:10px;text-align:center"><div style="font-family:Cormorant Garamond,serif;font-size:18px;font-weight:600;color:var(--gold)">'+((w.price||0)*(w.quantity||0)).toLocaleString()+'€</div><div style="color:var(--muted);font-size:9px;text-transform:uppercase">Valeur</div></div>'
-    + '<div style="background:var(--bg3);border-radius:6px;padding:10px;text-align:center"><div style="font-family:Cormorant Garamond,serif;font-size:18px;font-weight:600;color:var(--gold)">'+(w.rating||'-')+'</div><div style="color:var(--muted);font-size:9px;text-transform:uppercase">Note</div></div>'
+    + '<div style="background:var(--bg3);border-radius:6px;padding:10px;text-align:center"><div style="font-family:Cormorant Garamond,serif;font-size:20px;font-weight:600;color:var(--gold)">'+(w.price||'?')+'€</div><div style="color:var(--muted);font-size:9px;text-transform:uppercase;margin-top:2px">Prix/btl</div></div>'
+    + '<div style="background:var(--bg3);border-radius:6px;padding:10px;text-align:center"><div style="font-family:Cormorant Garamond,serif;font-size:20px;font-weight:600;color:var(--gold)">'+(w.quantity||0)+'</div><div style="color:var(--muted);font-size:9px;text-transform:uppercase;margin-top:2px">'+(w.format||'Btl')+'</div></div>'
+    + '<div style="background:var(--bg3);border-radius:6px;padding:10px;text-align:center"><div style="font-family:Cormorant Garamond,serif;font-size:20px;font-weight:600;color:var(--gold)">'+((w.price||0)*(w.quantity||0)).toLocaleString()+'€</div><div style="color:var(--muted);font-size:9px;text-transform:uppercase;margin-top:2px">Valeur</div></div>'
+    + '<div style="background:var(--bg3);border-radius:6px;padding:10px;text-align:center"><div style="font-family:Cormorant Garamond,serif;font-size:20px;font-weight:600;color:var(--gold)">'+(w.rating||'–')+'</div><div style="color:var(--muted);font-size:9px;text-transform:uppercase;margin-top:2px">/100</div></div>'
     + '</div>'
-    + '<div style="background:var(--bg3);border-radius:6px;padding:10px;border:1px solid var(--border)">'
-    + '<div style="color:var(--muted);font-size:9px;text-transform:uppercase;margin-bottom:6px">Consommation</div>'
-    + '<div style="color:'+urgColor+';font-size:12px;margin-bottom:4px">'+(yl<0?'Passe pic':yl===0?'Derniere annee!':yl<=2?'Boire avant '+w.peakTo:yl<=5?'Jusqu en '+w.peakTo:year>=(w.peakFrom||0)?'A point - '+w.peakTo:'Attendre '+w.peakFrom)+'</div>'
-    + '<div style="height:4px;background:var(--bg2);border-radius:2px"><div style="height:100%;border-radius:2px;background:'+urgColor+';width:'+(yl<0?100:yl===0?100:yl<=2?80:yl<=5?50:20)+'%"></div></div>'
+
+    // Identité du vin
+    + '<div style="background:var(--bg3);border-radius:8px;padding:14px;border:1px solid var(--border)">'
+    + '<div style="color:var(--muted);font-size:9px;letter-spacing:1px;text-transform:uppercase;margin-bottom:10px">Identité</div>'
+    + '<div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;font-size:11px">'
+    + (w.domaine ? '<div><span style="color:var(--muted)">Domaine</span><br><span style="color:var(--white)">'+w.domaine+'</span></div>' : '')
+    + (w.producer ? '<div><span style="color:var(--muted)">Producteur</span><br><span style="color:var(--white)">'+w.producer+'</span></div>' : '')
+    + (w.grape ? '<div style="grid-column:1/-1"><span style="color:var(--muted)">Cépage(s)</span><br><span style="color:var(--white)">'+w.grape+'</span></div>' : '')
+    + (w.country ? '<div><span style="color:var(--muted)">Pays</span><br><span style="color:var(--white)">'+w.country+'</span></div>' : '')
+    + (w.year ? '<div><span style="color:var(--muted)">Millésime</span><br><span style="color:var(--white)">'+w.year+'</span></div>' : '')
+    + '</div></div>'
+
+    // Géographie détaillée
+    + '<div style="background:var(--bg3);border-radius:8px;padding:14px;border:1px solid var(--border)">'
+    + '<div style="color:var(--muted);font-size:9px;letter-spacing:1px;text-transform:uppercase;margin-bottom:10px">Géographie</div>'
+    + '<div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap;font-size:11px">'
+    + [w.country, w.region, w.subregion, w.terroir, w.climat].filter(Boolean).map(function(v, i, arr) {
+        return '<span style="color:'+(i===arr.length-1?'var(--white)':'var(--muted)')+'">'+v+'</span>'+(i<arr.length-1?'<span style="color:var(--border)"> ›</span>':'');
+      }).join(' ')
+    + '</div></div>'
+
+    // Fenêtre de consommation
+    + '<div style="background:var(--bg3);border-radius:8px;padding:14px;border:1px solid var(--border)">'
+    + '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">'
+    + '<div style="color:var(--muted);font-size:9px;letter-spacing:1px;text-transform:uppercase">Consommation</div>'
+    + '<div style="color:'+urgColor+';font-size:11px">'+peakLine+'</div>'
     + '</div>'
-    + (w.notes ? '<div><div style="color:var(--muted);font-size:9px;text-transform:uppercase;margin-bottom:6px">Notes</div><div style="font-family:Cormorant Garamond,serif;font-size:15px;font-style:italic;line-height:1.6">'+w.notes+'</div></div>' : '')
-    + (w.pairings&&w.pairings.length ? '<div><div style="color:var(--muted);font-size:9px;text-transform:uppercase;margin-bottom:6px">Accords</div><div style="display:flex;flex-wrap:wrap;gap:5px">'+w.pairings.map(function(p){ return '<span style="background:var(--bg3);border:1px solid var(--border);border-radius:20px;padding:3px 10px;font-size:10px">'+p+'</span>'; }).join('')+'</div></div>' : '')
+    + '<div style="position:relative;height:6px;background:var(--bg2);border-radius:3px">'
+    + '<div style="position:absolute;height:100%;border-radius:3px;background:'+urgColor+';width:'+(yl<0?100:yl===0?100:yl<=2?85:yl<=5?55:25)+'%"></div>'
+    + '</div>'
+    + '<div style="display:flex;justify-content:space-between;font-size:9px;color:var(--muted);margin-top:4px">'
+    + '<span>'+(w.peakFrom||'?')+'</span><span>◆ '+year+'</span><span>'+(w.peakTo||'?')+'</span>'
+    + '</div></div>'
+
+    // Notes de dégustation
+    + (w.notes ? '<div>'
+    + '<div style="color:var(--muted);font-size:9px;letter-spacing:1px;text-transform:uppercase;margin-bottom:8px">Notes de dégustation</div>'
+    + '<div style="font-family:Cormorant Garamond,serif;font-size:16px;font-style:italic;line-height:1.65;color:var(--white);padding:12px 14px;background:var(--bg3);border-radius:8px;border-left:3px solid '+(w.color||'#8b1c1c')+'">'+w.notes+'</div>'
+    + '</div>' : '')
+
+    // Accords mets-vins
+    + (w.pairings&&w.pairings.length ? '<div>'
+    + '<div style="color:var(--muted);font-size:9px;letter-spacing:1px;text-transform:uppercase;margin-bottom:8px">Accords mets-vins</div>'
+    + '<div style="display:flex;flex-wrap:wrap;gap:6px">'
+    + w.pairings.map(function(p){ return '<span style="background:var(--bg3);border:1px solid var(--border);border-radius:20px;padding:4px 12px;font-size:10px;display:flex;align-items:center;gap:5px"><span>🍽</span>'+p+'</span>'; }).join('')
+    + '</div></div>' : '')
+
+    // Actions
     + '<div style="display:flex;gap:8px">'
-    + '<button onclick="checkoutWine('+w.id+')" style="flex:1;padding:11px;background:var(--red);border:none;border-radius:6px;color:#fff;font-family:DM Mono,monospace;font-size:11px;cursor:pointer">- Sortir</button>'
-    + '<button onclick="checkinWine('+w.id+')" style="flex:1;padding:11px;background:var(--bg3);border:1px solid var(--border);border-radius:6px;color:var(--white);font-family:DM Mono,monospace;font-size:11px;cursor:pointer">+ Entree</button>'
+    + '<button onclick="checkoutWine('+w.id+')" style="flex:1;padding:12px;background:var(--red);border:none;border-radius:6px;color:#fff;font-family:DM Mono,monospace;font-size:11px;cursor:pointer">− Sortir une bouteille</button>'
+    + '<button onclick="checkinWine('+w.id+')" style="flex:1;padding:12px;background:var(--bg3);border:1px solid var(--border);border-radius:6px;color:var(--white);font-family:DM Mono,monospace;font-size:11px;cursor:pointer">+ Entrée stock</button>'
     + '</div>'
-    + '<button onclick="openShareModal('+w.id+')" class="share-btn" style="width:100%;margin-top:4px">Partager cette fiche</button>'
+    + '<button onclick="openShareModal('+w.id+')" class="share-btn" style="width:100%;text-align:center">📤 Partager cette fiche</button>'
     + '</div>';
   document.getElementById('wine-modal-content').innerHTML = content;
   document.getElementById('wine-modal').style.display = 'flex';
