@@ -408,14 +408,19 @@ function sendSuggestion(text) {
 // Détecte l'intention localement sans appeler Claude inutilement
 function detectIntent(text) {
   const t = text.toLowerCase();
-  const addKw = ['ajouter','ajoute','ajoute-moi','ajoute moi','add ','mettre ','j'ai acheté','j'ai reçu','reçu ','acheter','nouvel ','nouveau ','nouvelle '];
+  const addKw = ['ajouter','ajoute','ajoute-moi','ajoute moi','add ','mettre ','j\'ai acheté','j\'ai reçu','reçu ','acheter','nouvel ','nouveau ','nouvelle '];
   const outKw = ['sortir','sorti','retire','prendre une','ouvrir','boire ce soir'];
   const isMultiline = text.includes('\n') && text.split('\n').filter(l=>l.trim()).length > 1;
   const hasBullet = /^[\d\-\*•]\s/m.test(text);
+  const isUrl = /^https?:\/\//i.test(text.trim());
 
   if (outKw.some(k => t.includes(k))) return 'checkout';
   if ((isMultiline || hasBullet) && addKw.some(k => t.includes(k))) return 'bulk';
   if (addKw.some(k => t.includes(k))) return 'analyze';
+  // Si c'est une URL (lien Vivino/Wine-Searcher) → compléter l'analyse en cours
+  if (isUrl && pendingWine) return 'enrich';
+  // Si c'est un prix ou une région seule → compléter l'analyse en cours
+  if (pendingWine && /^\d+[€$]?$|^\d+\s*€/.test(text.trim())) return 'enrich';
   return 'chat';
 }
 
@@ -433,6 +438,15 @@ async function processMessage(text, photo) {
   if (intent === 'analyze') {
     removeTyping();
     await analyzeAndAdd(null, text);
+    return;
+  }
+
+  if (intent === 'enrich') {
+    // L'utilisateur donne une URL ou un prix pour compléter une analyse en attente
+    // On relance analyzeAndAdd avec le contexte enrichi
+    removeTyping();
+    const context = conversationHistory.slice(-3).map(h => h.content).join(' ') + ' ' + text;
+    await analyzeAndAdd(null, context);
     return;
   }
 
