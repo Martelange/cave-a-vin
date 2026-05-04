@@ -406,7 +406,7 @@ function sendSuggestion(text) {
 // ════════════════════════════════════════════════════════════════
 async function processMessage(text, photo) {
   const caveSummary = wines.map(w =>
-    `ID:${w.id} | ${w.name} ${w.year||'NM'} | ${w.type} | ${w.region} | ${w.price}€ | stock:${w.quantity} | note:${w.rating} | pic:${w.peakFrom}-${w.peakTo} | accords:${(w.pairings||[]).join(',')}`
+    `${w.id}|${w.name} ${w.year||''}|${w.domaine||w.producer||''}`
   ).join('\n');
 
   const systemPrompt = `Tu es le sommelier personnel d'un amateur de vin passionné. Tu gères sa cave à vin et tu le conseilles.
