@@ -405,23 +405,25 @@ function sendSuggestion(text) {
 //  LOGIQUE PRINCIPALE — COMPREND L'INTENTION
 // ════════════════════════════════════════════════════════════════
 async function processMessage(text, photo) {
-  const caveSummary = wines.map(w =>
-    `ID:${w.id} | ${w.name} ${w.year||'NM'} | ${w.type} | ${w.region} | ${w.price}€ | stock:${w.quantity} | note:${w.rating} | pic:${w.peakFrom}-${w.peakTo} | accords:${(w.pairings||[]).join(',')}`
+  // Résumé cave condensé — max 80 vins pour limiter les tokens
+  const winesForSummary = wines.slice(-80);
+  const caveSummary = winesForSummary.map(w =>
+    `${w.id}|${w.name} ${w.year||''}|${w.type}|${w.quantity}btl|${w.price}€|${w.rating}/100`
   ).join('\n');
 
-  const systemPrompt = `Tu es le sommelier personnel d'un amateur de vin passionné. Tu gères sa cave à vin et tu le conseilles.
+  const caveStats = `${wines.length} vins, ${wines.reduce((s,w)=>s+(w.quantity||0),0)} bouteilles`;
 
-CAVE ACTUELLE:
-${caveSummary || 'Cave vide.'}
+  const systemPrompt = `Tu es sommelier IA. Cave: ${caveStats}.
+VINS(id|nom année|type|stock|prix|note):
+${caveSummary || 'vide'}
 
-TES CAPACITÉS:
-1. PHOTO d'étiquette → traitement automatique, pas besoin d'action
-2. LISTE de vins (plusieurs vins mentionnés) → réponds UNIQUEMENT: ACTION:ADD_BULK puis le texte brut de la liste, rien d'autre
-3. UN SEUL vin en texte → ACTION:ANALYZE
-4. SORTIR un vin → ACTION:CHECKOUT:<id>:<quantité>
-5. CONSEIL/QUESTION → réponds directement, 3-5 phrases, cite les vins par nom
+ACTIONS POSSIBLES:
+- LISTE de vins → ACTION:ADD_BULK + liste brute
+- 1 vin texte → ACTION:ANALYZE
+- Sortir un vin → ACTION:CHECKOUT:<id>:<qté>
+- Conseil → réponse directe courte (2-3 phrases max)
 
-RÈGLES: Toujours en français. Pour une liste: ACTION:ADD_BULK + le texte original de la liste, c'est tout.`;
+Toujours en français. Réponses brèves.`;
 
   // Photo → analyser directement
   if (photo) {
@@ -430,9 +432,9 @@ RÈGLES: Toujours en français. Pour une liste: ACTION:ADD_BULK + le texte origi
     return;
   }
 
-  // Construire les messages
+  // Construire les messages — max 4 échanges récents pour limiter les tokens
   const messages = [];
-  const recentHistory = conversationHistory.slice(-6);
+  const recentHistory = conversationHistory.slice(-4);
   for (const h of recentHistory.slice(0, -1)) {
     if (typeof h.content === 'string') messages.push(h);
   }
