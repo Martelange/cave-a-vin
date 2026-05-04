@@ -405,6 +405,37 @@ function sendSuggestion(text) {
 //  LOGIQUE PRINCIPALE — COMPREND L'INTENTION
 // ════════════════════════════════════════════════════════════════
 async function processMessage(text, photo) {
+
+  // ── Détection locale de l'intention (sans appel Claude) ──────────
+  // Évite un aller-retour Chat inutile avant Analyze
+  const t = text.toLowerCase();
+  const addKeywords = ['ajouter','ajoute','ajoute-moi','add ','mettre en cave',
+    "j'ai acheté","j'ai reçu","reçu ","acheter","nouvel ","nouveau ","nouvelle "];
+  const checkoutKeywords = ['sortir','sorti','retire','prendre une','ouvrir','boire ce soir'];
+  const isMultiline = text.includes('\n') && text.split('\n').filter(l => l.trim()).length > 2;
+
+  // Photo → analyze directement
+  if (photo) {
+    removeTyping();
+    await analyzeAndAdd(photo, text);
+    return;
+  }
+
+  // Liste de vins → bulk
+  if (isMultiline && addKeywords.some(k => t.includes(k))) {
+    removeTyping();
+    await addBulkWines('ACTION:ADD_BULK ' + text);
+    return;
+  }
+
+  // Un seul vin à ajouter → analyze directement, sans passer par chat
+  if (addKeywords.some(k => t.includes(k))) {
+    removeTyping();
+    await analyzeAndAdd(null, text);
+    return;
+  }
+
+  // ── Pour tout le reste (conseil, checkout) : appel Chat ──────────
   const caveSummary = wines.map(w =>
     `${w.id}|${w.name} ${w.year||''}|${w.domaine||w.producer||''}`
   ).join('\n');
@@ -415,24 +446,13 @@ CAVE ACTUELLE:
 ${caveSummary || 'Cave vide.'}
 
 TES CAPACITÉS:
-1. PHOTO d'étiquette → traitement automatique, pas besoin d'action
-2. LISTE de vins (plusieurs vins mentionnés) → réponds UNIQUEMENT: ACTION:ADD_BULK puis le texte brut de la liste, rien d'autre
-3. UN SEUL vin en texte → ACTION:ANALYZE
-4. SORTIR un vin → ACTION:CHECKOUT:<id>:<quantité>
-5. CONSEIL/QUESTION → réponds directement, 3-5 phrases, cite les vins par nom
+1. SORTIR un vin → ACTION:CHECKOUT:<id>:<quantité>
+2. CONSEIL/QUESTION → réponds directement, 3-5 phrases max, cite les vins par nom
 
-RÈGLES: Toujours en français. Pour une liste: ACTION:ADD_BULK + le texte original de la liste, c'est tout.`;
+RÈGLES: Toujours en français. Réponses courtes et précises.`;
 
-  // Photo → analyser directement
-  if (photo) {
-    removeTyping();
-    await analyzeAndAdd(photo, text);
-    return;
-  }
-
-  // Construire les messages
   const messages = [];
-  const recentHistory = conversationHistory.slice(-6);
+  const recentHistory = conversationHistory.slice(-4);
   for (const h of recentHistory.slice(0, -1)) {
     if (typeof h.content === 'string') messages.push(h);
   }
@@ -441,18 +461,11 @@ RÈGLES: Toujours en français. Pour une liste: ACTION:ADD_BULK + le texte origi
   const data = await callScript('chat', { messages, systemPrompt });
   const reply = data.reply || '';
 
-  conversationHistory.push({ role: 'assistant', content: reply });
+  conversationHistory.push({ role: 'assistant', content: reply.substring(0, 500) });
 
   removeTyping();
 
-  // Traiter les actions
-  if (reply.startsWith('ACTION:ADD_BULK')) {
-    await addBulkWines(reply);
-  } else if (reply.startsWith('ACTION:ANALYZE')) {
-    const explanation = reply.replace('ACTION:ANALYZE', '').trim();
-    if (explanation) addBotMessage(explanation);
-    await analyzeAndAdd(photo, text);
-  } else if (reply.startsWith('ACTION:CHECKOUT:')) {
+  if (reply.startsWith('ACTION:CHECKOUT:')) {
     const parts = reply.split(':');
     const id  = parts[2];
     const qty = parseInt(parts[3]) || 1;
