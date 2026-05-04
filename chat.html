@@ -404,67 +404,35 @@ function sendSuggestion(text) {
 // ════════════════════════════════════════════════════════════════
 //  LOGIQUE PRINCIPALE — COMPREND L'INTENTION
 // ════════════════════════════════════════════════════════════════
-
-// Détecte l'intention localement sans appeler Claude inutilement
-function detectIntent(text) {
-  const t = text.toLowerCase();
-  const addKw = ['ajouter','ajoute','ajoute-moi','ajoute moi','add ','mettre ','j\'ai acheté','j\'ai reçu','reçu ','acheter','nouvel ','nouveau ','nouvelle '];
-  const outKw = ['sortir','sorti','retire','prendre une','ouvrir','boire ce soir'];
-  const isMultiline = text.includes('\n') && text.split('\n').filter(l=>l.trim()).length > 1;
-  const hasBullet = /^[\d\-\*•]\s/m.test(text);
-  const isUrl = /^https?:\/\//i.test(text.trim());
-
-  if (outKw.some(k => t.includes(k))) return 'checkout';
-  if ((isMultiline || hasBullet) && addKw.some(k => t.includes(k))) return 'bulk';
-  if (addKw.some(k => t.includes(k))) return 'analyze';
-  // Si c'est une URL (lien Vivino/Wine-Searcher) → compléter l'analyse en cours
-  if (isUrl && pendingWine) return 'enrich';
-  // Si c'est un prix ou une région seule → compléter l'analyse en cours
-  if (pendingWine && /^\d+[€$]?$|^\d+\s*€/.test(text.trim())) return 'enrich';
-  return 'chat';
-}
-
 async function processMessage(text, photo) {
-  // Photo → analyser directement sans passer par Claude
+  const caveSummary = wines.map(w =>
+    `ID:${w.id} | ${w.name} ${w.year||'NM'} | ${w.type} | ${w.region} | ${w.price}€ | stock:${w.quantity} | note:${w.rating} | pic:${w.peakFrom}-${w.peakTo} | accords:${(w.pairings||[]).join(',')}`
+  ).join('\n');
+
+  const systemPrompt = `Tu es le sommelier personnel d'un amateur de vin passionné. Tu gères sa cave à vin et tu le conseilles.
+
+CAVE ACTUELLE:
+${caveSummary || 'Cave vide.'}
+
+TES CAPACITÉS:
+1. PHOTO d'étiquette → traitement automatique, pas besoin d'action
+2. LISTE de vins (plusieurs vins mentionnés) → réponds UNIQUEMENT: ACTION:ADD_BULK puis le texte brut de la liste, rien d'autre
+3. UN SEUL vin en texte → ACTION:ANALYZE
+4. SORTIR un vin → ACTION:CHECKOUT:<id>:<quantité>
+5. CONSEIL/QUESTION → réponds directement, 3-5 phrases, cite les vins par nom
+
+RÈGLES: Toujours en français. Pour une liste: ACTION:ADD_BULK + le texte original de la liste, c'est tout.`;
+
+  // Photo → analyser directement
   if (photo) {
     removeTyping();
     await analyzeAndAdd(photo, text);
     return;
   }
 
-  // Détection locale pour éviter un aller-retour Claude inutile
-  const intent = detectIntent(text);
-
-  if (intent === 'analyze') {
-    removeTyping();
-    await analyzeAndAdd(null, text);
-    return;
-  }
-
-  if (intent === 'enrich') {
-    // L'utilisateur donne une URL ou un prix pour compléter une analyse en attente
-    // On relance analyzeAndAdd avec le contexte enrichi
-    removeTyping();
-    const context = conversationHistory.slice(-3).map(h => h.content).join(' ') + ' ' + text;
-    await analyzeAndAdd(null, context);
-    return;
-  }
-
-  if (intent === 'bulk') {
-    removeTyping();
-    await addBulkWines('ACTION:ADD_BULK ' + text);
-    return;
-  }
-
-  // Pour conseil ou checkout : appel Claude avec cave résumée et historique court
-  const caveSummary = wines.slice(-50).map(w =>
-    `${w.id}|${w.name} ${w.year||''}|${w.type}|${w.quantity}btl`
-  ).join('\n');
-
-  const systemPrompt = `Sommelier IA. Cave: ${wines.length} vins.\n${caveSummary||'vide'}\nSi sortir un vin: ACTION:CHECKOUT:<id>:<qté>\nSinon: 2-3 phrases max en français.`;
-
+  // Construire les messages
   const messages = [];
-  const recentHistory = conversationHistory.slice(-4);
+  const recentHistory = conversationHistory.slice(-6);
   for (const h of recentHistory.slice(0, -1)) {
     if (typeof h.content === 'string') messages.push(h);
   }
@@ -473,11 +441,18 @@ async function processMessage(text, photo) {
   const data = await callScript('chat', { messages, systemPrompt });
   const reply = data.reply || '';
 
-  conversationHistory.push({ role: 'assistant', content: reply.slice(0, 400) });
+  conversationHistory.push({ role: 'assistant', content: reply });
 
   removeTyping();
 
-  if (reply.startsWith('ACTION:CHECKOUT:')) {
+  // Traiter les actions
+  if (reply.startsWith('ACTION:ADD_BULK')) {
+    await addBulkWines(reply);
+  } else if (reply.startsWith('ACTION:ANALYZE')) {
+    const explanation = reply.replace('ACTION:ANALYZE', '').trim();
+    if (explanation) addBotMessage(explanation);
+    await analyzeAndAdd(photo, text);
+  } else if (reply.startsWith('ACTION:CHECKOUT:')) {
     const parts = reply.split(':');
     const id  = parts[2];
     const qty = parseInt(parts[3]) || 1;
