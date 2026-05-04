@@ -404,35 +404,51 @@ function sendSuggestion(text) {
 // ════════════════════════════════════════════════════════════════
 //  LOGIQUE PRINCIPALE — COMPREND L'INTENTION
 // ════════════════════════════════════════════════════════════════
+
+// Détecte l'intention localement sans appeler Claude inutilement
+function detectIntent(text) {
+  const t = text.toLowerCase();
+  const addKw = ['ajouter','ajoute','ajoute-moi','ajoute moi','add ','mettre ','j'ai acheté','j'ai reçu','reçu ','acheter','nouvel ','nouveau ','nouvelle '];
+  const outKw = ['sortir','sorti','retire','prendre une','ouvrir','boire ce soir'];
+  const isMultiline = text.includes('\n') && text.split('\n').filter(l=>l.trim()).length > 1;
+  const hasBullet = /^[\d\-\*•]\s/m.test(text);
+
+  if (outKw.some(k => t.includes(k))) return 'checkout';
+  if ((isMultiline || hasBullet) && addKw.some(k => t.includes(k))) return 'bulk';
+  if (addKw.some(k => t.includes(k))) return 'analyze';
+  return 'chat';
+}
+
 async function processMessage(text, photo) {
-  // Résumé cave condensé — max 80 vins pour limiter les tokens
-  const winesForSummary = wines.slice(-80);
-  const caveSummary = winesForSummary.map(w =>
-    `${w.id}|${w.name} ${w.year||''}|${w.type}|${w.quantity}btl|${w.price}€|${w.rating}/100`
-  ).join('\n');
-
-  const caveStats = `${wines.length} vins, ${wines.reduce((s,w)=>s+(w.quantity||0),0)} bouteilles`;
-
-  const systemPrompt = `Tu es sommelier IA. Cave: ${caveStats}.
-VINS(id|nom année|type|stock|prix|note):
-${caveSummary || 'vide'}
-
-ACTIONS POSSIBLES:
-- LISTE de vins → ACTION:ADD_BULK + liste brute
-- 1 vin texte → ACTION:ANALYZE
-- Sortir un vin → ACTION:CHECKOUT:<id>:<qté>
-- Conseil → réponse directe courte (2-3 phrases max)
-
-Toujours en français. Réponses brèves.`;
-
-  // Photo → analyser directement
+  // Photo → analyser directement sans passer par Claude
   if (photo) {
     removeTyping();
     await analyzeAndAdd(photo, text);
     return;
   }
 
-  // Construire les messages — max 4 échanges récents pour limiter les tokens
+  // Détection locale pour éviter un aller-retour Claude inutile
+  const intent = detectIntent(text);
+
+  if (intent === 'analyze') {
+    removeTyping();
+    await analyzeAndAdd(null, text);
+    return;
+  }
+
+  if (intent === 'bulk') {
+    removeTyping();
+    await addBulkWines('ACTION:ADD_BULK ' + text);
+    return;
+  }
+
+  // Pour conseil ou checkout : appel Claude avec cave résumée et historique court
+  const caveSummary = wines.slice(-50).map(w =>
+    `${w.id}|${w.name} ${w.year||''}|${w.type}|${w.quantity}btl`
+  ).join('\n');
+
+  const systemPrompt = `Sommelier IA. Cave: ${wines.length} vins.\n${caveSummary||'vide'}\nSi sortir un vin: ACTION:CHECKOUT:<id>:<qté>\nSinon: 2-3 phrases max en français.`;
+
   const messages = [];
   const recentHistory = conversationHistory.slice(-4);
   for (const h of recentHistory.slice(0, -1)) {
@@ -443,18 +459,11 @@ Toujours en français. Réponses brèves.`;
   const data = await callScript('chat', { messages, systemPrompt });
   const reply = data.reply || '';
 
-  conversationHistory.push({ role: 'assistant', content: reply });
+  conversationHistory.push({ role: 'assistant', content: reply.slice(0, 400) });
 
   removeTyping();
 
-  // Traiter les actions
-  if (reply.startsWith('ACTION:ADD_BULK')) {
-    await addBulkWines(reply);
-  } else if (reply.startsWith('ACTION:ANALYZE')) {
-    const explanation = reply.replace('ACTION:ANALYZE', '').trim();
-    if (explanation) addBotMessage(explanation);
-    await analyzeAndAdd(photo, text);
-  } else if (reply.startsWith('ACTION:CHECKOUT:')) {
+  if (reply.startsWith('ACTION:CHECKOUT:')) {
     const parts = reply.split(':');
     const id  = parts[2];
     const qty = parseInt(parts[3]) || 1;
