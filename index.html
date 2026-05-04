@@ -183,10 +183,14 @@
     <div id="tab-cave">
       <div id="filters">
         <input type="search" id="search-input" placeholder="Rechercher..." oninput="renderCave()" />
-        <select id="type-filter" onchange="renderCave()">
-          <option value="">Tous types</option>
-          <option>Rouge</option><option>Blanc</option><option>Rose</option><option>Petillant</option>
-        </select>
+        <div id="type-filter" style="display:flex;gap:5px;flex-wrap:wrap;">
+          <button class="type-btn active" data-type="" onclick="toggleTypeFilter(this)" style="padding:5px 10px;border-radius:20px;border:1px solid var(--border);background:rgba(201,168,76,.15);color:var(--gold);font-family:'DM Mono',monospace;font-size:10px;cursor:pointer;">Tous</button>
+          <button class="type-btn" data-type="Rouge" onclick="toggleTypeFilter(this)" style="padding:5px 10px;border-radius:20px;border:1px solid #c0392b44;background:#c0392b11;color:#c0392b;font-family:'DM Mono',monospace;font-size:10px;cursor:pointer;">Rouge</button>
+          <button class="type-btn" data-type="Blanc" onclick="toggleTypeFilter(this)" style="padding:5px 10px;border-radius:20px;border:1px solid #d4a84344;background:#d4a84311;color:#d4a843;font-family:'DM Mono',monospace;font-size:10px;cursor:pointer;">Blanc</button>
+          <button class="type-btn" data-type="Rosé" onclick="toggleTypeFilter(this)" style="padding:5px 10px;border-radius:20px;border:1px solid #e8829a44;background:#e8829a11;color:#e8829a;font-family:'DM Mono',monospace;font-size:10px;cursor:pointer;">Rosé</button>
+          <button class="type-btn" data-type="Pétillant" onclick="toggleTypeFilter(this)" style="padding:5px 10px;border-radius:20px;border:1px solid #7ab8d444;background:#7ab8d411;color:#7ab8d4;font-family:'DM Mono',monospace;font-size:10px;cursor:pointer;">Pétillant</button>
+          <button class="type-btn" data-type="Orange" onclick="toggleTypeFilter(this)" style="padding:5px 10px;border-radius:20px;border:1px solid #e8912044;background:#e8912011;color:#e89120;font-family:'DM Mono',monospace;font-size:10px;cursor:pointer;">Orange</button>
+        </div>
         <select id="region-filter" onchange="renderCave()">
           <option value="">Toutes regions</option>
         </select>
@@ -287,7 +291,8 @@
 
 <script>
 var FLAG = {"France":"FR","Italie":"IT","Espagne":"ES","Allemagne":"DE","Portugal":"PT","USA":"US"};
-var TYPE_COLORS = {Rouge:"#c0392b",Blanc:"#d4a843",Rose:"#e8829a",Petillant:"#7ab8d4"};
+var TYPE_COLORS = {Rouge:"#c0392b",Blanc:"#d4a843","Rosé":"#e8829a","Pétillant":"#7ab8d4",Orange:"#e89120"};
+var activeTypeFilters = new Set(); // ensemble des types sélectionnés (vide = tous)
 var wines = [];
 var currentTab = 'cave';
 var currentSort = 'urgency';
@@ -384,6 +389,42 @@ function initPriceSlider() {
   document.getElementById('price-val').textContent = rounded+'€';
 }
 
+// ════ FILTRE TYPE MULTI-SÉLECTION ════════════════════════════
+function toggleTypeFilter(btn) {
+  var type = btn.dataset.type;
+  if (type === "") {
+    // "Tous" → reset
+    activeTypeFilters.clear();
+    document.querySelectorAll('.type-btn').forEach(function(b) {
+      b.style.opacity = b.dataset.type === "" ? "1" : "0.45";
+      b.style.fontWeight = b.dataset.type === "" ? "bold" : "normal";
+    });
+    document.querySelector('.type-btn[data-type=""]').style.opacity = "1";
+  } else {
+    // Désactiver "Tous"
+    var allBtn = document.querySelector('.type-btn[data-type=""]');
+    allBtn.style.opacity = "0.45";
+    allBtn.style.fontWeight = "normal";
+    // Toggle ce type
+    if (activeTypeFilters.has(type)) {
+      activeTypeFilters.delete(type);
+      btn.style.opacity = "0.45";
+      btn.style.fontWeight = "normal";
+    } else {
+      activeTypeFilters.add(type);
+      btn.style.opacity = "1";
+      btn.style.fontWeight = "bold";
+    }
+    // Si plus rien de sélectionné → revenir à "Tous"
+    if (activeTypeFilters.size === 0) {
+      allBtn.style.opacity = "1";
+      allBtn.style.fontWeight = "bold";
+    }
+  }
+  renderCave();
+}
+
+
 function populateRegions() {
   var sel = document.getElementById('region-filter');
   var current = sel.value;
@@ -416,14 +457,14 @@ function urgencyLabel(w) {
 
 function renderCave() {
   var q = document.getElementById('search-input').value.toLowerCase();
-  var type = document.getElementById('type-filter').value;
+  var type = null; // géré par activeTypeFilters
   var region = document.getElementById('region-filter').value;
   var priceMax = parseInt(document.getElementById('price-filter').value)||99999;
   var sliderMax = parseInt(document.getElementById('price-filter').max)||99999;
 
   var filtered = wines.filter(function(w) {
     var mQ = !q || (w.name||'').toLowerCase().indexOf(q)>=0 || (w.region||'').toLowerCase().indexOf(q)>=0;
-    var mT = !type || w.type===type;
+    var mT = activeTypeFilters.size === 0 || activeTypeFilters.has(w.type);
     var mR = !region || w.region===region || w.subregion===region || w.terroir===region || w.climat===region;
     var mP = priceMax>=sliderMax || (w.price||0)<=priceMax;
     return mQ && mT && mR && mP;
@@ -484,7 +525,7 @@ function openWineModal(id) {
 
   // ── Géographie ───────────────────────────────────────────────
   var geoLine = [w.region, w.subregion, w.terroir, w.climat].filter(Boolean).join(' › ');
-  var typeColor = ({Rouge:'#c0392b',Blanc:'#d4a843',Rose:'#e8829a',Petillant:'#7ab8d4'})[w.type]||'#888';
+  var typeColor = ({Rouge:'#c0392b',Blanc:'#d4a843','Rosé':'#e8829a','Pétillant':'#7ab8d4',Orange:'#e89120'})[w.type]||'#888';
   var peakLine = yl<0?'Passé son pic':yl===0?'Dernière année !':yl<=2?'À boire avant '+w.peakTo:yl<=5?'Dans sa fenêtre jusqu\'en '+w.peakTo:year>=(w.peakFrom||0)?'À point · jusqu\'en '+w.peakTo:'Attendre jusqu\'en '+w.peakFrom;
 
   var content = '<div class="modal-handle"></div>'
@@ -964,7 +1005,7 @@ async function cwProcess(text) {
       if (res3 && res3.wine) {
         window._cwPendingWine = res3.wine;
         var w3 = res3.wine;
-        var tc3 = ({Rouge:'#c0392b',Blanc:'#d4a843',Rosé:'#e8829a',Pétillant:'#7ab8d4'})[w3.type]||'#888';
+        var tc3 = ({Rouge:'#c0392b',Blanc:'#d4a843','Rosé':'#e8829a','Pétillant':'#7ab8d4',Orange:'#e89120'})[w3.type]||'#888';
         var msgDiv = document.createElement('div');
         msgDiv.className = 'cw-msg bot';
         msgDiv.id = 'cw-analyze-card';
@@ -1390,7 +1431,7 @@ function openShareModal(id) {
   var urgColor = yl<0?'#888':yl<=2?'#e05555':yl<=5?'#e0a030':'#3a9b5a';
   var statut = yl<=0?'À boire maintenant':yl<=2?'À boire avant '+w.peakTo:yl<=5?'Dans sa fenêtre':'À garder jusqu\'en '+w.peakFrom;
   var geo = [w.region, w.subregion, w.terroir, w.climat].filter(Boolean).join(' › ');
-  var typeColor = ({Rouge:'#c0392b',Blanc:'#d4a843',Rose:'#e8829a',Petillant:'#7ab8d4'})[w.type]||'#888';
+  var typeColor = ({Rouge:'#c0392b',Blanc:'#d4a843','Rosé':'#e8829a','Pétillant':'#7ab8d4',Orange:'#e89120'})[w.type]||'#888';
 
   var card = ''
     // Carte principale
