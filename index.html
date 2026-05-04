@@ -1359,77 +1359,110 @@ function showAlertsBanner() {
 }
 
 // ── FICHE PARTAGE ─────────────────────────────────────────────────
+function buildShareText(w) {
+  var year = new Date().getFullYear();
+  var yl = (w.peakTo||9999) - year;
+  var statut = yl <= 0 ? 'À boire maintenant' : yl <= 2 ? 'À boire avant '+w.peakTo : yl <= 5 ? 'Dans sa fenêtre ('+w.peakFrom+'-'+w.peakTo+')' : 'Attendre jusqu\'en '+w.peakFrom;
+  var nl = String.fromCharCode(10);
+  var geo = [w.region, w.subregion, w.terroir, w.climat].filter(Boolean).join(' › ');
+  return '🍷 '+w.name+(w.year?' '+w.year:'')+nl
+    + geo+(w.type?' · '+w.type:'')+nl
+    + (w.appellation?w.appellation+nl:'')
+    + (w.domaine?'Domaine: '+w.domaine+nl:'')
+    + (w.producer&&w.producer!==w.domaine?'Producteur: '+w.producer+nl:'')
+    + (w.grape?'Cépage: '+w.grape+nl:'')
+    + (w.rating?'Note: '+w.rating+'/100'+nl:'')
+    + (w.price?'Prix: '+w.price+'€'+nl:'')
+    + statut
+    + (w.notes?nl+nl+'« '+w.notes+' »':'')
+    + (w.pairings&&w.pairings.length?nl+nl+'Accords: '+w.pairings.slice(0,3).join(', '):'')
+    + nl+nl+'— Ma Cave à Vin';
+}
+
 function openShareModal(id) {
   var w = wines.find(function(x){ return String(x.id)===String(id); });
   if (!w) return;
   closeModal('wine-modal');
-  
+  window._shareWine = w;
+
   var year = new Date().getFullYear();
   var yl = (w.peakTo||9999) - year;
-  var statut = yl < 0 ? 'Passe son pic' : yl === 0 ? 'Derniere annee!' : yl <= 2 ? 'A boire rapidement' : yl <= 5 ? 'Dans sa fenetre' : 'A attendre';
-  var pairStr = (w.pairings||[]).slice(0,3).join(' - ');
-  
-  var card = '<div style="background:linear-gradient(145deg,#141210,#1c1916);border-radius:12px;padding:24px;border:1px solid rgba(201,168,76,.3)">'
-    + '<div style="display:flex;align-items:center;gap:12px;margin-bottom:16px">'
-    + '<div style="font-size:36px">'+(w.img||'...')+'</div>'
+  var urgColor = yl<0?'#888':yl<=2?'#e05555':yl<=5?'#e0a030':'#3a9b5a';
+  var statut = yl<=0?'À boire maintenant':yl<=2?'À boire avant '+w.peakTo:yl<=5?'Dans sa fenêtre':'À garder jusqu\'en '+w.peakFrom;
+  var geo = [w.region, w.subregion, w.terroir, w.climat].filter(Boolean).join(' › ');
+  var typeColor = ({Rouge:'#c0392b',Blanc:'#d4a843',Rose:'#e8829a',Petillant:'#7ab8d4'})[w.type]||'#888';
+
+  var card = ''
+    // Carte principale
+    + '<div style="background:linear-gradient(160deg,#141210,#1a1714);border-radius:12px;overflow:hidden;border:1px solid rgba(201,168,76,.25)">'
+
+    // Bande couleur top
+    + '<div style="height:4px;background:linear-gradient(90deg,'+(w.color||'#8b1c1c')+',transparent)"></div>'
+
+    // Header
+    + '<div style="padding:20px 20px 16px;border-bottom:1px solid rgba(180,140,80,.12)">'
+    + '<div style="display:flex;align-items:flex-start;gap:12px;margin-bottom:12px">'
+    + '<div style="font-size:38px;line-height:1">'+(w.img||'🍷')+'</div>'
     + '<div style="flex:1">'
-    + '<div style="font-family:Cormorant Garamond,serif;font-size:20px;font-weight:600;color:#f0ebe2">'+w.name+'</div>'
-    + '<div style="color:#7a6f5e;font-size:11px;margin-top:2px">'+w.region+(w.year?' - '+w.year:'')+'</div>'
+    + '<div style="font-family:Cormorant Garamond,serif;font-size:20px;font-weight:600;color:#f0ebe2;line-height:1.2">'+w.name+'</div>'
+    + (w.appellation?'<div style="color:#c9a84c;font-size:9px;letter-spacing:1.5px;text-transform:uppercase;margin-top:3px">'+w.appellation+'</div>':'')
+    + '<div style="color:#7a6f5e;font-size:11px;margin-top:4px">'+geo+(w.year?' · <span style="color:#c9a84c">'+w.year+'</span>':' · Sans millésime')+'</div>'
     + '</div>'
-    + '<div style="text-align:right"><div style="color:#c9a84c;font-family:Cormorant Garamond,serif;font-size:22px;font-weight:600">'+(w.rating||'?')+'</div><div style="color:#7a6f5e;font-size:9px">/100</div></div>'
+    + '<div style="text-align:right;flex-shrink:0">'
+    + '<div style="font-family:Cormorant Garamond,serif;font-size:26px;font-weight:600;color:#c9a84c;line-height:1">'+(w.rating||'–')+'</div>'
+    + '<div style="color:#7a6f5e;font-size:9px">/100</div>'
+    + '</div></div>'
+    // Badges
+    + '<div style="display:flex;gap:5px;flex-wrap:wrap">'
+    + '<span style="border:1px solid '+typeColor+'44;color:'+typeColor+';background:'+typeColor+'11;padding:2px 8px;border-radius:20px;font-size:9px;letter-spacing:.8px;text-transform:uppercase">'+w.type+'</span>'
+    + '<span style="border:1px solid '+urgColor+'44;color:'+urgColor+';background:'+urgColor+'11;padding:2px 8px;border-radius:20px;font-size:9px">'+statut+'</span>'
+    + (w.format&&w.format!=='Bouteille'?'<span style="border:1px solid rgba(180,140,80,.3);color:#c9a84c;padding:2px 8px;border-radius:20px;font-size:9px">'+w.format+'</span>':'')
+    + '</div></div>'
+
+    // Grille infos
+    + '<div style="padding:14px 20px;display:grid;grid-template-columns:1fr 1fr;gap:8px;border-bottom:1px solid rgba(180,140,80,.12)">'
+    + (w.domaine?'<div><div style="color:#7a6f5e;font-size:9px;text-transform:uppercase;letter-spacing:.8px">Domaine</div><div style="color:#f0ebe2;font-size:11px;margin-top:2px">'+w.domaine+'</div></div>':'')
+    + (w.producer&&w.producer!==w.domaine?'<div><div style="color:#7a6f5e;font-size:9px;text-transform:uppercase;letter-spacing:.8px">Producteur</div><div style="color:#f0ebe2;font-size:11px;margin-top:2px">'+w.producer+'</div></div>':'')
+    + (w.grape?'<div style="grid-column:1/-1"><div style="color:#7a6f5e;font-size:9px;text-transform:uppercase;letter-spacing:.8px">Cépage</div><div style="color:#f0ebe2;font-size:11px;margin-top:2px">'+w.grape+'</div></div>':'')
+    + '<div><div style="color:#7a6f5e;font-size:9px;text-transform:uppercase;letter-spacing:.8px">Prix</div><div style="color:#c9a84c;font-size:14px;font-family:Cormorant Garamond,serif;font-weight:600;margin-top:2px">'+(w.price||'?')+'€</div></div>'
+    + '<div><div style="color:#7a6f5e;font-size:9px;text-transform:uppercase;letter-spacing:.8px">Stock</div><div style="color:#f0ebe2;font-size:11px;margin-top:2px">'+(w.quantity||0)+' '+(w.format||'btl')+'</div></div>'
     + '</div>'
-    + '<div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:14px">'
-    + '<div style="background:rgba(255,255,255,.04);border-radius:6px;padding:8px 10px"><div style="color:#7a6f5e;font-size:9px;text-transform:uppercase;letter-spacing:1px">Cepage</div><div style="color:#f0ebe2;font-size:11px;margin-top:2px">'+(w.grape||'?')+'</div></div>'
-    + '<div style="background:rgba(255,255,255,.04);border-radius:6px;padding:8px 10px"><div style="color:#7a6f5e;font-size:9px;text-transform:uppercase;letter-spacing:1px">Statut</div><div style="color:#c9a84c;font-size:11px;margin-top:2px">'+statut+'</div></div>'
-    + '</div>'
-    + (w.notes ? '<div style="font-family:Cormorant Garamond,serif;font-size:14px;font-style:italic;color:#f0ebe2;line-height:1.6;margin-bottom:12px;padding:10px;background:rgba(255,255,255,.03);border-radius:6px;border-left:2px solid #c9a84c">'+w.notes+'</div>' : '')
-    + (pairStr ? '<div style="color:#7a6f5e;font-size:10px">Accords: <span style="color:#f0ebe2">'+pairStr+'</span></div>' : '')
-    + '<div style="margin-top:14px;padding-top:12px;border-top:1px solid rgba(180,140,80,.15);color:#7a6f5e;font-size:9px;text-align:center;letter-spacing:1px">Ma Cave a Vin</div>'
-    + '</div>';
-  
+
+    // Notes
+    + (w.notes?'<div style="padding:14px 20px;border-bottom:1px solid rgba(180,140,80,.12)">'
+    + '<div style="font-family:Cormorant Garamond,serif;font-size:15px;font-style:italic;color:#f0ebe2;line-height:1.65;padding-left:10px;border-left:2px solid '+(w.color||'#8b1c1c')+'">'+w.notes+'</div>'
+    + '</div>':'')
+
+    // Accords
+    + (w.pairings&&w.pairings.length?'<div style="padding:12px 20px;border-bottom:1px solid rgba(180,140,80,.12)">'
+    + '<div style="color:#7a6f5e;font-size:9px;text-transform:uppercase;letter-spacing:.8px;margin-bottom:6px">Accords</div>'
+    + '<div style="display:flex;flex-wrap:wrap;gap:5px">'
+    + w.pairings.slice(0,3).map(function(p){ return '<span style="background:rgba(255,255,255,.04);border:1px solid rgba(180,140,80,.15);border-radius:20px;padding:3px 10px;color:#f0ebe2;font-size:10px">🍽 '+p+'</span>'; }).join('')
+    + '</div></div>':'')
+
+    // Footer
+    + '<div style="padding:10px 20px;text-align:center">'
+    + '<div style="color:#7a6f5e;font-size:9px;letter-spacing:2px;text-transform:uppercase">✦ Ma Cave à Vin</div>'
+    + '</div></div>';
+
   document.getElementById('share-card-content').innerHTML = card;
   document.getElementById('share-modal').style.display = 'flex';
-  
-  // Stocker le vin pour la copie texte
-  window._shareWine = w;
 }
 
 function shareWhatsapp() {
   var w = window._shareWine;
   if (!w) return;
-  var year = new Date().getFullYear();
-  var yl = (w.peakTo||9999) - year;
-  var statut = yl <= 0 ? 'A boire maintenant' : yl <= 2 ? 'A boire rapidement ('+w.peakTo+')' : 'Fenetre: '+w.peakFrom+'-'+w.peakTo;
-  var nl = String.fromCharCode(10);
-  var text = w.name + (w.year ? ' ' + w.year : '') + nl
-    + w.region + (w.subregion ? ' › ' + w.subregion : '') + (w.terroir ? ' › ' + w.terroir : '') + ' - ' + (w.type||'') + nl
-    + (w.grape ? 'Cepage: ' + w.grape + nl : '')
-    + (w.rating ? 'Note: ' + w.rating + '/100' + nl : '')
-    + statut
-    + (w.notes ? nl + nl + w.notes : '')
-    + (w.pairings && w.pairings.length ? nl + 'Accords: ' + w.pairings.slice(0,3).join(', ') : '');
-  var url = 'https://wa.me/?text=' + encodeURIComponent(text);
+  var url = 'https://wa.me/?text=' + encodeURIComponent(buildShareText(w));
   window.open(url, '_blank');
 }
 
 function copyShareCard() {
   var w = window._shareWine;
   if (!w) return;
-  var year = new Date().getFullYear();
-  var yl = (w.peakTo||9999) - year;
-  var statut = yl <= 0 ? 'A boire maintenant' : yl <= 2 ? 'A boire rapidement ('+w.peakTo+')' : 'Fenetre: '+w.peakFrom+'-'+w.peakTo;
-  var nl = String.fromCharCode(10);
-  var text = w.name + (w.year ? ' ' + w.year : '') + nl
-    + w.region + (w.subregion ? ' › ' + w.subregion : '') + (w.terroir ? ' › ' + w.terroir : '') + ' - ' + (w.type||'') + nl
-    + (w.grape ? 'Cepage: ' + w.grape + nl : '')
-    + (w.rating ? 'Note: ' + w.rating + '/100' + nl : '')
-    + statut + nl
-    + (w.notes ? nl + w.notes + nl : '')
-    + (w.pairings && w.pairings.length ? nl + 'Accords: ' + w.pairings.slice(0,3).join(', ') : '');
   if (navigator.clipboard) {
-    navigator.clipboard.writeText(text).then(function() {
+    navigator.clipboard.writeText(buildShareText(w)).then(function() {
       var btn = event.target;
-      btn.textContent = 'Copie!';
+      btn.textContent = 'Copié !';
       setTimeout(function(){ btn.textContent = 'Copier texte'; }, 2000);
     });
   }
